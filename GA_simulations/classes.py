@@ -4,9 +4,12 @@ from random import choice, choices
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import multiprocessing as mp
+import pandas as pd
+import os
 
 from fcutils.maths.geometry import calc_distance_between_points_2d, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.geometry import get_random_point_on_line_between_two_points
+from fcutils.maths.filtering import median_filter_1d
 
 import networkx as nx
 
@@ -148,6 +151,9 @@ class Maze:
 #                                  ENVIRONMENT                                 #
 # ---------------------------------------------------------------------------- #
 class Environment:
+    death_factor = 0.5
+    change_maze_every = 300
+
     def __init__(self, **kwargs):
         self.p_short = kwargs.pop('p_short', .1)
         self.A = kwargs.pop('A', (0, 0)) # threat pos
@@ -155,6 +161,7 @@ class Environment:
         self.AB =  calc_distance_between_points_2d(self.A, self.B)
 
         self.N_mazes = kwargs.pop('N_mazes', 10)
+        self.death_factor /= self.N_mazes
         self.N_generations = kwargs.pop('N_generations', 50)
         self.N_agents = kwargs.pop('N_agents', 50)
         self.keep_top_perc = kwargs.pop('keep_top_perc', 33)
@@ -177,8 +184,6 @@ class Environment:
             self.mazes.append(Maze(self.A, self.B, theta_l = theta_l, theta_r = theta_r, 
                                             gamma_l=gamma_l, gamma_r=gamma_r))
 
-
-
     def test_effect_of_pshort(self):
         f, axarr = plt.subplots(figsize=(12, 6), ncols = len(self.mazes))
 
@@ -193,9 +198,6 @@ class Environment:
             ax.plot(right, color='r', lw=2, label='right')
             ax.legend()
             ax.set(xlabel='p_shortcut', ylabel='path lengths')
-
-
-
 
     def run_trial(self, agent, maze):
         # Get the agent's choice
@@ -215,7 +217,7 @@ class Environment:
         else:
             escape_dur = length_r
 
-        p_dead = (escape_dur / mindist) * 0.025 # death probabily is a function of how much longer was the escape
+        p_dead = (escape_dur / mindist) * self.death_factor # death probabily is a function of how much longer was the escape
         if coin_toss(th=1-p_dead):
             agent.die()
             
@@ -231,7 +233,7 @@ class Environment:
 class Agent:
     alive = True
 
-    mutation_std = 0.05
+    mutation_std = 0.1
 
     def __init__(self, parent_genome={}):
         # get genes
@@ -307,17 +309,56 @@ class Agent:
     def die(self):
         self.alive = False
 
+class AgentNN(Agent):
+    def __init__(self, *args, weights = None, **kwargs):
+        Agent.__init__(self, *args, **kwargs)
 
+        if weights is None: 
+            weights = npr.uniform(-1, 1, 4*2).reshape(2, 4) # 4 input variables, 2 output variables
+        else:
+            weights += npr.normal(0, .1, 4*2).reshape(2, 4) 
+        self.genome = weights
+
+    def choose(self, maze):
+        # Estimate the length of the two arms
+        length_l, length_r = maze.AC_lB, maze.AC_rB
+
+        # Estimate the length of the two arms
+        theta_l, theta_r = np.abs(maze.theta_l), np.abs(maze.theta_r)
+        if theta_l is None: raise NotImplementedError
+
+        inputs = np.array([length_l, length_r, theta_l, theta_r])
+
+        output = np.dot(self.genome, inputs)
+        yhat = output[0] / np.sum(output)
+        
+        if coin_toss(th=yhat):
+            return 'left', None
+        else:
+            return 'right', None
+
+    def __repr__(self):
+        return f'(Agent NN, {self.genome})'
+
+    def __str__(self):
+        return f'(Agent NN, {self.genome})'
+
+    def get_fitness(self):
+        self.fitness = np.nanmean(self.corrects) #+ np.sum(self.genome)
 
 # ---------------------------------------------------------------------------- #
 #                                  POPULATION                                  #
 # ---------------------------------------------------------------------------- #
 class Population(Environment):
+    agent_class = AgentNN
+
+    save_agents_every = 250
+
     def __init__(self, **kwargs):
         Environment.__init__(self, **kwargs)
 
         self.gen_num = 0
-        self.agents = [Agent() for i in range(self.N_agents)]
+        self.agents = [self.agent_class() for i in range(self.N_agents)]
 
         self.keep_top = np.int((self.N_agents/100)*self.keep_top_perc)
 
@@ -326,13 +367,13 @@ class Population(Environment):
             agents_p_take_small_theta = [],
             agents_p_take_small_geodesic = [],
             agents_p_correct = [],
-            # perc_survivors = []
+            perc_survivors = []
         )
 
     def run_generation(self):
         # Change maze every 10 generations
-        # if self.gen_num % 50 == 0:
-        #     self.get_mazes()
+        if self.gen_num % self.change_maze_every == 0:
+            self.get_mazes()
 
         for agent in self.agents:
             for maze in self.mazes:
@@ -344,8 +385,13 @@ class Population(Environment):
         # Keep only agents that are alive
         agents = self.agents.copy()
         self.agents = [agent for agent in agents if agent.alive]
+
         if not self.agents:
             raise ValueError("They all dieded")
+
+        if self.gen_num % self.save_agents_every == 0:
+                    self.save_agents()
+
         fitnesses = [a.fitness for a in self.agents]
 
         n_agents = len(self.agents)
@@ -359,29 +405,52 @@ class Population(Environment):
         while n_agents < self.N_agents:
             # choose a random parent weighted by fitness
             parent = choices(self.agents, fitnesses, k=1)[0]
-            new_gen.append(Agent(parent.genome.copy())) 
+            new_gen.append(self.agent_class(weights = parent.genome.copy())) 
             n_agents += 1
         self.agents.extend(new_gen)
 
         for agent in self.agents:
             agent.reset()
 
+    def save_agents(self):
+        genomes = [a.genome for n,a in enumerate(self.agents)]
+        fld = os.path.join('GA_simulations/agents', 'gen_'+str(self.gen_num))
+        if not os.path.isdir(fld):
+            os.mkdir(fld)
+        for n, genome in enumerate(genomes):
+            np.save(os.path.join(fld, f"gen{self.gen_num}_ag_{n}.npy"), genome)
+        
+
 
     def update_stats(self):
         self.stats['world_p_short'].append(self.p_short)
-        self.stats['agents_p_take_small_theta'].append(np.mean([a.genome['p_take_small_theta'] 
-                                                            for a in self.agents]))
-        self.stats['agents_p_take_small_geodesic'].append(np.mean([a.genome['p_take_small_geodesic'] 
-                                                            for a in self.agents]))
+        try:
+            self.stats['agents_p_take_small_theta'].append(np.mean([a.genome['p_take_small_theta'] 
+                                                                for a in self.agents]))
+            self.stats['agents_p_take_small_geodesic'].append(np.mean([a.genome['p_take_small_geodesic'] 
+                                                                for a in self.agents]))
+        except: pass
         self.stats['agents_p_correct'].append(np.mean([np.nanmean(a.corrects) 
                                                             for a in self.agents]))
-        # self.stats['perc_survivors'].append(self.perc_survivors)
+        self.stats['perc_survivors'].append(self.perc_survivors)
+
+        if self.gen_num % 250 == 0:
+            print(f"\nGeneration {self.gen_num}\n"+
+                    f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
+                    f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"
+                )
 
     def plot(self):
         f, ax = plt.subplots(figsize=(12, 6))
 
         for k,v in self.stats.items():
-            ax.plot(v, label=k, lw=1, alpha=.7)
+            if v:
+                ax.plot(median_filter_1d(v, kernel=101), label=k, lw=1, alpha=.7)
+
+        for x in np.arange(self.N_generations):
+            if x % self.change_maze_every == 0: 
+                ax.axvline(x, ls='--', lw=2, color='k', alpha=.5)
+
         ax.legend()
         ax.set(xlabel='# generations', ylabel='probability shortcut')
 
