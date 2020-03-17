@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.random as npr
-from random import choice
+from random import choice, choices
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import multiprocessing as mp
@@ -22,46 +22,28 @@ def coin_toss(th = 0.5):
 #                                     MAZE                                     #
 # ---------------------------------------------------------------------------- #
 class Maze:
-    def __init__(self, A, B, C_l=None, C_r=None, theta_l=None, theta_r=None, length=None):
+    def __init__(self, A, B, C_l=None, C_r=None, theta_l=None, theta_r=None, gamma_l=None, gamma_r=None):
         self.A = A
         self.B = B
         self.C_l = C_l
         self.C_r = C_r
-        self.theta_l = theta_l
+        self.theta_l = theta_l # angle of path relative to shelter vector
         self.theta_r = theta_r
-        self.length = length
+        self.gamma_l = gamma_l # length of initial path segment
+        self.gamma_r = gamma_r
         self.P = None
 
         if C_l is not None:
             self.compute_sides()
         elif theta_l is not None:
-            self.get_arms_given_thetas_and_length()
+            self.get_arms_given_thetas_and_gamma()
         self.compute_xhat()
 
-    def get_arms_given_thetas_and_length(self):
-        self.AB =  calc_distance_between_points_2d(self.A, self.B)
-        costeta = np.cos(np.radians(self.theta_l))
-
-        # l = self.length
-        ab = self.AB
-        p = 1.5 # ! WEIFIFBWEIF
-
-        self.theta_l = self.theta_r = np.radians(45)
-
-        # self.AC_l = (ab**2 - l**2)/(2 * ab * np.cos(np.abs(self.theta_l)) - 2 * l)
-        self.AC_l = (p**2 - 2*ab*p)/(2*p - 2*ab - 2*ab*np.cos(np.abs(self.theta_l)))
-        self.C_lB = p - self.AC_l
-        self.AC_lB = self.AC_l + self.C_lB
-        self.C_l = (-self.AC_l * np.sin(np.abs(self.theta_l)), self.AC_l * np.cos(np.abs(self.theta_l)))
-
-        self.AC_r = (p**2 - 2*ab*p)/(2*p - 2*ab - 2*ab*np.cos(np.abs(self.theta_r)))
-        self.C_rB = p - self.AC_r
-        self.AC_rB = self.AC_r + self.C_rB
-        self.C_r = (self.AC_r * np.sin(np.abs(self.theta_r)), self.AC_r * np.cos(np.abs(self.theta_r)))
-
-        if self.AC_l >= p+ab or self.AC_r >= p+ab:
-            self.visualise()
-            raise ValueError
+    def get_arms_given_thetas_and_gamma(self):
+        self.C_l = (np.sin(self.theta_l *self.gamma_l), np.cos(self.theta_l *self.gamma_l))
+        self.C_r = (np.sin(self.theta_r*self.gamma_r), np.cos(self.theta_r*self.gamma_r))
+        self.compute_sides()
+    
 
     def compute_sides(self):
         self.AB =   calc_distance_between_points_2d(self.A, self.B)
@@ -170,6 +152,7 @@ class Environment:
         self.p_short = kwargs.pop('p_short', .1)
         self.A = kwargs.pop('A', (0, 0)) # threat pos
         self.B = kwargs.pop('B', (0, 1)) # shelter pos
+        self.AB =  calc_distance_between_points_2d(self.A, self.B)
 
         self.N_mazes = kwargs.pop('N_mazes', 10)
         self.N_generations = kwargs.pop('N_generations', 50)
@@ -185,17 +168,16 @@ class Environment:
         for i in np.arange(self.N_mazes):
             gamma = npr.uniform(0, self.x_minmax)
 
-            theta_l = -round(np.radians(npr.uniform(1, 90)), 2)
-            theta_r = round(np.radians(npr.uniform(1, 90)), 2)
+            theta_l = -round(np.radians(npr.uniform(1, 180)), 2)
+            theta_r = round(np.radians(npr.uniform(1, 180)), 2)
 
-            self.mazes.append(Maze(self.A, self.B, theta_l = theta_l, theta_r = theta_r, length=gamma))
+            gamma_l = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
+            gamma_r = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
 
-            # C_l = (np.sin(theta_l)*gamma, np.cos(theta_l)*gamma)
-            # C_r = (np.sin(theta_r)*gamma, np.cos(theta_r)*gamma)
-            # C_l = (-0.5, .5)
-            # C_r = (0.5, .5)
+            self.mazes.append(Maze(self.A, self.B, theta_l = theta_l, theta_r = theta_r, 
+                                            gamma_l=gamma_l, gamma_r=gamma_r))
 
-            # self.mazes.append(Maze(self.A, self.B, C_l, C_r))
+
 
     def test_effect_of_pshort(self):
         f, axarr = plt.subplots(figsize=(12, 6), ncols = len(self.mazes))
@@ -220,20 +202,20 @@ class Environment:
         agent_choice, agent_expectations = agent.choose(maze)
 
         # Get the actual path lengths
-        xbar_l, xbar_r = maze.compute_xbar(self.p_short)
-        if xbar_l < xbar_r:
+        length_l, length_r = maze.compute_xbar(self.p_short)
+        if length_l < length_r:
             correct = 'left'
         else:
             correct = 'right'
 
-        # Evaluate outcome
-        mindist = np.min([xbar_l, xbar_r])
+        # Evaluate outcome -> see if dead
+        mindist = np.min([length_l, length_r])
         if agent_choice == 'left': 
-            escape_dur = xbar_l
+            escape_dur = length_l
         else:
-            escape_dur = xbar_r
+            escape_dur = length_r
 
-        p_dead = (escape_dur - mindist) * 0.1
+        p_dead = (escape_dur / mindist) * 0.025 # death probabily is a function of how much longer was the escape
         if coin_toss(th=1-p_dead):
             agent.die()
             
@@ -248,19 +230,31 @@ class Environment:
 # ---------------------------------------------------------------------------- #
 class Agent:
     alive = True
-    def __init__(self, p_take_small_theta=None, p_take_small_geodesic=None):
+
+    mutation_std = 0.05
+
+    def __init__(self, parent_genome={}):
+        # get genes
+        p_take_small_theta = parent_genome.pop('p_take_small_theta', None)
+        p_take_small_geodesic = parent_genome.pop('p_take_small_geodesic', None)
+
+        # Add to genome
         self.genome = {}
         self.add_to_genome('p_take_small_theta', p_take_small_theta)
         self.add_to_genome('p_take_small_geodesic', p_take_small_geodesic)
 
-        self.corrects = []
-        self.fitness = np.nan
+        self.reset()
+        if not len(self.genome.keys()):
+            raise ValueError
 
     def add_to_genome(self, gene, allel, vmin=0, vmax=1):
         if allel is None: allel = npr.uniform(vmin, vmax)
+        else: allel = allel + npr.normal(0, self.mutation_std)
+
         if allel < vmin: allel = vmin
         elif allel > vmax: allel = vmax
-        self.genome['gene'] = allel
+
+        self.genome[gene] = round(allel, 2)
 
     def choose(self, maze):
         # Estimate the length of the two arms
@@ -268,8 +262,12 @@ class Agent:
         length_l, length_r = maze.AC_lB, maze.AC_rB
 
         # Estimate the length of the two arms
-        theta_l, theta_r = maze.theta_l, maze.theta_r
+        theta_l, theta_r = np.abs(maze.theta_l), np.abs(maze.theta_r)
         if theta_l is None: raise NotImplementedError
+
+        # get rations
+        len_ratio = length_l / (length_l + length_r)
+        ang_ratio = theta_l / (theta_l + theta_r)
 
         # weight them
         if length_l < length_r:
@@ -282,8 +280,9 @@ class Agent:
         else:
             smallest_angle = 1
 
-        weighted_avg = (shortest * self.genome['p_take_small_geodesic'] + smallest_angle * self.genome['p_take_small_theta'])/2
-
+        # TODO change the way the choice is made ?
+        weighted_avg = (shortest * self.genome['p_take_small_geodesic'] + 
+                            smallest_angle * self.genome['p_take_small_theta'])/2
 
         if weighted_avg > .5:
             choice = 'right'
@@ -292,14 +291,18 @@ class Agent:
 
         return choice, (length_l, length_r)
 
-    def compute_fitness(self):
-        self.fitness = np.mean(self.outcomes)
+    def reset(self):
+        self.corrects = []
+        self.fitness = np.nan
+
+    def get_fitness(self):
+        self.fitness = np.nanmean(self.corrects) + np.max(list(self.genome.values()))/len(self.genome.values())
 
     def __repr__(self):
-        return f'(agent, fitness: {round(self.fitness,2)})'
+        return f'(agent, {self.genome})'
 
     def __str__(self):
-        return f'(agent, fitness: {round(self.fitness,2)})'
+        return f'(agent, {self.genome})'
 
     def die(self):
         self.alive = False
@@ -320,61 +323,68 @@ class Population(Environment):
 
         self.stats = dict(
             world_p_short = [],
-            p_take_small_theta = [],
+            agents_p_take_small_theta = [],
             agents_p_take_small_geodesic = [],
             agents_p_correct = [],
+            # perc_survivors = []
         )
 
     def run_generation(self):
-        if self.gen_num % 10 == 0:
-            self.get_mazes()
+        # Change maze every 10 generations
+        # if self.gen_num % 50 == 0:
+        #     self.get_mazes()
 
         for agent in self.agents:
             for maze in self.mazes:
                 self.run_trial(agent, maze)
-            agent.compute_fitness()
+            agent.get_fitness()
         self.gen_num += 1
 
     def update_population(self):
+        # Keep only agents that are alive
         agents = self.agents.copy()
         self.agents = [agent for agent in agents if agent.alive]
-        self.best_agents = self.agents.copy()
+        if not self.agents:
+            raise ValueError("They all dieded")
+        fitnesses = [a.fitness for a in self.agents]
+
+        n_agents = len(self.agents)
+        self.perc_survivors = n_agents / self.N_agents
+
+        # Get stats
+        self.update_stats()
 
         # replenish population
-        prev_gen = self.agents.copy()
-        while len(self.agents) < self.N_agents:
-            # choose a random parent
-            parent = choice(prev_gen)
-            self.agents.append(Agent(parent.p_short + npr.normal(0, .1),
-                                        parent.p_take_small_geodesic + npr.normal(0, .1)))
-            # self.agents.append(Agent())
-            
-        self.update_stats()
+        new_gen = []
+        while n_agents < self.N_agents:
+            # choose a random parent weighted by fitness
+            parent = choices(self.agents, fitnesses, k=1)[0]
+            new_gen.append(Agent(parent.genome.copy())) 
+            n_agents += 1
+        self.agents.extend(new_gen)
+
         for agent in self.agents:
-            agent.fitness = np.nan
-            agent.outcomes = []
+            agent.reset()
+
 
     def update_stats(self):
         self.stats['world_p_short'].append(self.p_short)
-        self.stats['p_take_small_theta'].append(np.mean([a.p_take_small_theta for a in self.best_agents]))
-        self.stats['agents_p_take_small_geodesic'].append(np.mean([a.p_take_small_geodesic for a in self.best_agents]))
-        self.stats['agents_p_correct'].append(np.mean([np.nanmean(a.corrects) for a in self.best_agents]))
+        self.stats['agents_p_take_small_theta'].append(np.mean([a.genome['p_take_small_theta'] 
+                                                            for a in self.agents]))
+        self.stats['agents_p_take_small_geodesic'].append(np.mean([a.genome['p_take_small_geodesic'] 
+                                                            for a in self.agents]))
+        self.stats['agents_p_correct'].append(np.mean([np.nanmean(a.corrects) 
+                                                            for a in self.agents]))
+        # self.stats['perc_survivors'].append(self.perc_survivors)
 
     def plot(self):
         f, ax = plt.subplots(figsize=(12, 6))
 
         for k,v in self.stats.items():
-            ax.plot(v, label=k)
+            ax.plot(v, label=k, lw=1, alpha=.7)
         ax.legend()
         ax.set(xlabel='# generations', ylabel='probability shortcut')
 
-    def plot_p_short_hist(self):
-        f, ax = plt.subplots(figsize=(12, 6))
-        ax.hist([a.p_short for a in self.agents])
-
-    def plot_fitness_hist(self):
-        f, ax = plt.subplots(figsize=(12, 6))
-        ax.hist([a.fitness for a in self.agents if not np.isnan(a.fitness)])
 
     def evolve(self):
         for gen_n in tqdm(range(self.N_generations)):
