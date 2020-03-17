@@ -72,7 +72,7 @@ class Maze:
 
         self.AC_r =     calc_distance_between_points_2d(self.A, self.C_r)
         self.C_rB =     calc_distance_between_points_2d(self.C_r, self.B)
-        self.AC_rB =    self.AC_r + self.C_rB
+        self.AC_rB =    self.AC_r + self.C_rB 
 
     def compute_xhat(self, niters=100):
         self.xhat_l = 0
