@@ -3,15 +3,17 @@ import numpy.random as npr
 from random import choice, choices
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import multiprocessing as mp
 import pandas as pd
 import os
 import shutil
-
+import datetime
 
 from fcutils.maths.geometry import calc_distance_between_points_2d, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.geometry import get_random_point_on_line_between_two_points
 from fcutils.maths.filtering import median_filter_1d
+from fcutils.file_io.utils import check_create_folder, check_folder_empty
+from fcutils.file_io.io import save_json
+from fcutils.plotting.utils import save_figure
 
 import networkx as nx
 
@@ -21,6 +23,48 @@ def coin_toss(th = 0.5):
         return True
     else:
         return False
+
+
+# ---------------------------------------------------------------------------- #
+#                                    PARAMS                                    #
+# ---------------------------------------------------------------------------- #
+class Params:
+    save_fld = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/GAMODELLING'
+
+    death_factor = 0.5
+    change_maze_every = 25
+    N_mazes = 250
+    N_agents = 100
+    N_generations = 1000
+    p_short = 0
+    x_minmax = 1
+    save_agents_every = 250
+    save_best_n_agents = 25
+
+    def __init__(self):
+        self.death_factor /= self.N_mazes
+
+        self.params = dict(
+            death_factor = self.death_factor,
+            change_maze_every = self.change_maze_every,
+            N_mazes = self.N_mazes,
+            N_agents = self.N_agents,
+            N_generations = self.N_generations,
+            p_short = self.p_short,
+            x_minmax = self.x_minmax,
+            save_agents_every = self.save_agents_every,
+            save_best_n_agents = self.save_best_n_agents,
+        )
+
+        # Create save folder
+        self.save_fld = os.path.join(self.save_fld, f'nagents_{self.N_agents}_pshort_{self.p_short}_nmazes_{self.N_mazes}')
+        
+        check_create_folder(self.save_fld, raise_error=False)
+        check_folder_empty(self.save_fld, raise_error=True)
+
+        # Save params
+        save_json(os.path.join(self.save_fld, 'params.json'), self.params)
+
 
 
 # ---------------------------------------------------------------------------- #
@@ -152,24 +196,13 @@ class Maze:
 # ---------------------------------------------------------------------------- #
 #                                  ENVIRONMENT                                 #
 # ---------------------------------------------------------------------------- #
-class Environment:
-    death_factor = 0.5
-    change_maze_every = 30000
-
+class Environment(Params):
     def __init__(self, **kwargs):
-        self.p_short = kwargs.pop('p_short', .1)
+        Params.__init__(self)
+
         self.A = kwargs.pop('A', (0, 0)) # threat pos
         self.B = kwargs.pop('B', (0, 1)) # shelter pos
         self.AB =  calc_distance_between_points_2d(self.A, self.B)
-
-        self.N_mazes = kwargs.pop('N_mazes', 10)
-        self.death_factor /= self.N_mazes
-        self.N_generations = kwargs.pop('N_generations', 50)
-        self.N_agents = kwargs.pop('N_agents', 50)
-        self.keep_top_perc = kwargs.pop('keep_top_perc', 33)
-
-        self.x_minmax = kwargs.pop('x_minmax', 1)
-
         self.get_mazes()
 
     def get_mazes(self):
@@ -219,7 +252,7 @@ class Environment:
         else:
             escape_dur = length_r
 
-        p_dead = (escape_dur / mindist) * self.death_factor # death probabily is a function of how much longer was the escape
+        p_dead = (escape_dur / mindist) * self.death_factor 
         if coin_toss(th=1-p_dead):
             agent.die()
             
@@ -241,7 +274,6 @@ class Environment:
 # ---------------------------------------------------------------------------- #
 class Agent:
     alive = True
-
     mutation_std = 0.1
 
     def __init__(self, parent_genome={}):
@@ -364,17 +396,11 @@ class AgentNN(Agent):
 # ---------------------------------------------------------------------------- #
 class Population(Environment):
     agent_class = AgentNN
-
-    save_agents_every = 250
-    save_best_n_agents = 25
-
     def __init__(self, **kwargs):
         Environment.__init__(self, **kwargs)
 
         self.gen_num = 0
         self.agents = [self.agent_class() for i in range(self.N_agents)]
-
-        self.keep_top = np.int((self.N_agents/100)*self.keep_top_perc)
 
         self.stats = dict(
             world_p_short = [],
@@ -385,26 +411,19 @@ class Population(Environment):
             perc_survivors = []
         )
 
-        # Remove previously cached agents data
-        for fld in os.listdir('GA_simulations/agents'):
-            shutil.rmtree(os.path.join('GA_simulations/agents', fld))
-
-    @staticmethod
-    def run_agent(args):
-        self, agent = args
+    def run_agent(self, agent):
         for maze in self.mazes:
             self.run_trial(agent, maze)
         agent.get_fitness()
 
     def run_generation(self):
-        # Change maze every 10 generations
-        if self.change_maze_every is not None:
-            if self.gen_num % self.change_maze_every == 0:
-                self.get_mazes()
+        if self.gen_num > 1:
+            if self.change_maze_every is not None:
+                if self.gen_num % self.change_maze_every == 0:
+                    self.get_mazes()
 
-        pool = mp.Pool(mp.cpu_count())
-        pool.map(self.run_agent, [(self, agent) for agent in self.agents])
-        pool.close()
+        for agent in self.agents:
+            self.run_agent(agent)
         self.gen_num += 1
 
     def update_population(self):
@@ -439,7 +458,7 @@ class Population(Environment):
             agent.reset()
 
     def save_agents(self):
-        fld = os.path.join('GA_simulations/agents', 'gen_'+str(self.gen_num))
+        fld = os.path.join(self.save_fld, 'gen_'+str(self.gen_num))
         if not os.path.isdir(fld):
             os.mkdir(fld)
 
@@ -481,6 +500,8 @@ class Population(Environment):
 
         ax.legend()
         ax.set(xlabel='# generations', ylabel='probability shortcut')
+
+        save_figure(f, os.path.join(self.save_fld, 'res.svg'), svg=True)
 
 
     def evolve(self):

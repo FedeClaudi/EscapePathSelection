@@ -1,5 +1,5 @@
 
-
+*.npy
 *.ckpt
 *.ckpt
 *.vscode
