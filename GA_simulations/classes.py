@@ -8,6 +8,7 @@ import os
 import shutil
 import datetime
 
+
 from fcutils.maths.geometry import calc_distance_between_points_2d, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.geometry import get_random_point_on_line_between_two_points
 from fcutils.maths.filtering import median_filter_1d
@@ -29,14 +30,15 @@ def coin_toss(th = 0.5):
 #                                    PARAMS                                    #
 # ---------------------------------------------------------------------------- #
 class Params:
-    save_fld = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/GAMODELLING'
+    # save_fld = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/GAMODELLING'
+    save_fld = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\GAMODELLING'
 
     death_factor = 0.5
-    change_maze_every = 25
-    N_mazes = 250
+    change_maze_every = 50
+    N_mazes = 100
     N_agents = 100
-    N_generations = 1000
-    p_short = 0
+    N_generations = 500
+    p_short = 1
     x_minmax = 1
     save_agents_every = 250
     save_best_n_agents = 25
@@ -57,7 +59,7 @@ class Params:
         )
 
         # Create save folder
-        self.save_fld = os.path.join(self.save_fld, f'nagents_{self.N_agents}_pshort_{self.p_short}_nmazes_{self.N_mazes}')
+        self.save_fld = os.path.join(self.save_fld, f'nagents_{self.N_agents}_pshort_{self.p_short}_nmazes_{self.N_mazes}_{datetime.datetime.now().strftime("%Y%m%d_%H%M")}_{npr.uniform(0, 10000)}')
         
         check_create_folder(self.save_fld, raise_error=False)
         check_folder_empty(self.save_fld, raise_error=True)
@@ -354,10 +356,16 @@ class AgentNN(Agent):
     def __init__(self, *args, weights = None, **kwargs):
         Agent.__init__(self, *args, **kwargs)
 
+        # if weights is None: 
+        #     weights = npr.uniform(-1, 1, 4*2).reshape(2, 4) # 4 input variables, 2 output variables
+        # else:
+        #     weights += npr.normal(0, .1, 4*2).reshape(2, 4) 
+
         if weights is None: 
-            weights = npr.uniform(-1, 1, 4*2).reshape(2, 4) # 4 input variables, 2 output variables
+            weights = npr.uniform(-1, 1, 4*1).reshape(1, 4) # 4 input variables, 1 output variables
         else:
-            weights += npr.normal(0, .1, 4*2).reshape(2, 4) 
+            weights += npr.normal(0, .1, 4*1).reshape(1, 4) 
+
         self.genome = weights
         self.fitness = np.nan
 
@@ -372,12 +380,18 @@ class AgentNN(Agent):
         inputs = np.array([length_l, length_r, theta_l, theta_r])
 
         output = np.dot(self.genome, inputs)
-        yhat = output[0] / np.sum(output)
+        # yhat = output[0] / np.sum(output)
         
-        if coin_toss(th=yhat):
-            return 'left', None
-        else:
+        # if coin_toss(th=yhat):
+        #     return 'left', None
+        # else:
+        #     return 'right', None
+
+        if output >= 0:
             return 'right', None
+        else:
+            return 'left', None
+
 
     def __repr__(self):
         return f'(Agent NN, {self.fitness})'
@@ -480,12 +494,12 @@ class Population(Environment):
         self.stats['perc_survivors'].append(self.perc_survivors)
         self.stats['maze_asymmetry'].append(self.get_mazes_asymmetry())
 
-        if self.gen_num % 250 == 0:
-            print(f"\nGeneration {self.gen_num}\n"+
-                    f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
-                    f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"+
-                    f"  Average maze asymmetry: {round(self.stats['maze_asymmetry'][-1], 2)}\n"
-                )
+        # if self.gen_num % 250 == 0:
+        #     print(f"\nGeneration {self.gen_num}\n"+
+        #             f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
+        #             f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"+
+        #             f"  Average maze asymmetry: {round(self.stats['maze_asymmetry'][-1], 2)}\n"
+        #         )
 
     def plot(self):
         f, ax = plt.subplots(figsize=(12, 6))
@@ -508,3 +522,4 @@ class Population(Environment):
         for gen_n in tqdm(range(self.N_generations)):
             self.run_generation()
             self.update_population()
+        self.save_agents()
