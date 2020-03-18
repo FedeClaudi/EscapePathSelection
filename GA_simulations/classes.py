@@ -6,6 +6,8 @@ from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
 import os
+import shutil
+
 
 from fcutils.maths.geometry import calc_distance_between_points_2d, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.geometry import get_random_point_on_line_between_two_points
@@ -152,7 +154,7 @@ class Maze:
 # ---------------------------------------------------------------------------- #
 class Environment:
     death_factor = 0.5
-    change_maze_every = 300
+    change_maze_every = 30000
 
     def __init__(self, **kwargs):
         self.p_short = kwargs.pop('p_short', .1)
@@ -225,6 +227,13 @@ class Environment:
             agent.corrects.append(1)
         else:
             agent.corrects.append(0)
+
+    def get_mazes_asymmetry(self):
+        asym_score = 0
+        for maze in self.mazes:
+            asym_score += 0.5 + np.abs(0.5 - maze.AC_lB / (maze.AC_lB + maze.AC_rB))
+        return asym_score / self.N_mazes
+
 
 
 # ---------------------------------------------------------------------------- #
@@ -318,6 +327,7 @@ class AgentNN(Agent):
         else:
             weights += npr.normal(0, .1, 4*2).reshape(2, 4) 
         self.genome = weights
+        self.fitness = np.nan
 
     def choose(self, maze):
         # Estimate the length of the two arms
@@ -338,10 +348,13 @@ class AgentNN(Agent):
             return 'right', None
 
     def __repr__(self):
-        return f'(Agent NN, {self.genome})'
+        return f'(Agent NN, {self.fitness})'
 
     def __str__(self):
-        return f'(Agent NN, {self.genome})'
+        return f'(Agent NN, {self.fitness})'
+
+    def __lt__(self, other):
+        return self.fitness < other.fitness
 
     def get_fitness(self):
         self.fitness = np.nanmean(self.corrects) #+ np.sum(self.genome)
@@ -353,6 +366,7 @@ class Population(Environment):
     agent_class = AgentNN
 
     save_agents_every = 250
+    save_best_n_agents = 25
 
     def __init__(self, **kwargs):
         Environment.__init__(self, **kwargs)
@@ -364,21 +378,33 @@ class Population(Environment):
 
         self.stats = dict(
             world_p_short = [],
+            maze_asymmetry = [],
             agents_p_take_small_theta = [],
             agents_p_take_small_geodesic = [],
             agents_p_correct = [],
             perc_survivors = []
         )
 
+        # Remove previously cached agents data
+        for fld in os.listdir('GA_simulations/agents'):
+            shutil.rmtree(os.path.join('GA_simulations/agents', fld))
+
+    @staticmethod
+    def run_agent(args):
+        self, agent = args
+        for maze in self.mazes:
+            self.run_trial(agent, maze)
+        agent.get_fitness()
+
     def run_generation(self):
         # Change maze every 10 generations
-        if self.gen_num % self.change_maze_every == 0:
-            self.get_mazes()
+        if self.change_maze_every is not None:
+            if self.gen_num % self.change_maze_every == 0:
+                self.get_mazes()
 
-        for agent in self.agents:
-            for maze in self.mazes:
-                self.run_trial(agent, maze)
-            agent.get_fitness()
+        pool = mp.Pool(mp.cpu_count())
+        pool.map(self.run_agent, [(self, agent) for agent in self.agents])
+        pool.close()
         self.gen_num += 1
 
     def update_population(self):
@@ -413,13 +439,13 @@ class Population(Environment):
             agent.reset()
 
     def save_agents(self):
-        genomes = [a.genome for n,a in enumerate(self.agents)]
         fld = os.path.join('GA_simulations/agents', 'gen_'+str(self.gen_num))
         if not os.path.isdir(fld):
             os.mkdir(fld)
-        for n, genome in enumerate(genomes):
-            np.save(os.path.join(fld, f"gen{self.gen_num}_ag_{n}.npy"), genome)
-        
+
+        for n, agent in enumerate(sorted(self.agents)[::-1]):
+            if n <= self.save_best_n_agents:
+                np.save(os.path.join(fld, f"gen{self.gen_num}_ag_{n}_f_{agent.fitness}.npy"), agent.genome)
 
 
     def update_stats(self):
@@ -433,11 +459,13 @@ class Population(Environment):
         self.stats['agents_p_correct'].append(np.mean([np.nanmean(a.corrects) 
                                                             for a in self.agents]))
         self.stats['perc_survivors'].append(self.perc_survivors)
+        self.stats['maze_asymmetry'].append(self.get_mazes_asymmetry())
 
         if self.gen_num % 250 == 0:
             print(f"\nGeneration {self.gen_num}\n"+
                     f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
-                    f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"
+                    f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"+
+                    f"  Average maze asymmetry: {round(self.stats['maze_asymmetry'][-1], 2)}\n"
                 )
 
     def plot(self):

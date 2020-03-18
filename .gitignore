@@ -10,7 +10,6 @@
 *.pyc
 .DS_Store
 Users/
-*.npy
 
 */__pycache__
 __pycache__
