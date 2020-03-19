@@ -8,7 +8,7 @@ from GA_simulations.classes import *
 
 
 
-def run(a):
+def run(*args):
     pop = Population()
     pop.evolve()
 
@@ -17,11 +17,12 @@ def run(a):
 
 
 if __name__ == "__main__":
+    run()
+    plt.show()
 
-
-    pool = mp.Pool(mp.cpu_count()-2)
-    pool.map(run, [i for i in np.arange(50)])
-    pool.close()
+#     pool = mp.Pool(mp.cpu_count()-2)
+#     pool.map(run, [i for i in np.arange(50)])
+#     pool.close()
 
 
 

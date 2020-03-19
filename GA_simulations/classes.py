@@ -7,7 +7,7 @@ import pandas as pd
 import os
 import shutil
 import datetime
-
+import seaborn as sns
 
 from fcutils.maths.geometry import calc_distance_between_points_2d, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.geometry import get_random_point_on_line_between_two_points
@@ -15,6 +15,9 @@ from fcutils.maths.filtering import median_filter_1d
 from fcutils.file_io.utils import check_create_folder, check_folder_empty
 from fcutils.file_io.io import save_json
 from fcutils.plotting.utils import save_figure
+from fcutils.file_io.utils import listdir, get_file_name
+from fcutils.file_io.io import load_json
+from fcutils.plotting.plot_distributions import plot_kde
 
 import networkx as nx
 
@@ -30,18 +33,24 @@ def coin_toss(th = 0.5):
 #                                    PARAMS                                    #
 # ---------------------------------------------------------------------------- #
 class Params:
-    # save_fld = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/GAMODELLING'
-    save_fld = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\GAMODELLING'
+    save_fld = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/GAMODELLING'
+    # save_fld = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\GAMODELLING'
 
     death_factor = 0.5
-    change_maze_every = 50
-    N_mazes = 100
+    change_maze_every = 25
+    N_mazes = 50
     N_agents = 100
     N_generations = 500
-    p_short = 1
+    p_short = 0
     x_minmax = 1
     save_agents_every = 250
-    save_best_n_agents = 25
+    save_best_n_agents = 5
+
+    genome_penalty = 1
+    genome_mutation_std = .1
+    
+    save_on = False
+    verbose = True
 
     def __init__(self):
         self.death_factor /= self.N_mazes
@@ -56,6 +65,7 @@ class Params:
             x_minmax = self.x_minmax,
             save_agents_every = self.save_agents_every,
             save_best_n_agents = self.save_best_n_agents,
+            genome_penalty = self.genome_penalty,
         )
 
         # Create save folder
@@ -212,11 +222,15 @@ class Environment(Params):
         for i in np.arange(self.N_mazes):
             gamma = npr.uniform(0, self.x_minmax)
 
-            theta_l = -round(np.radians(npr.uniform(1, 180)), 2)
-            theta_r = round(np.radians(npr.uniform(1, 180)), 2)
+            # theta_l = -round(np.radians(npr.uniform(1, 180)), 2)
+            # theta_r = round(np.radians(npr.uniform(1, 180)), 2)
+            theta_l = - round(np.radians(45), 2)
+            theta_r = round(np.radians(45), 2)
 
-            gamma_l = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
-            gamma_r = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
+            # gamma_l = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
+            # gamma_r = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
+            gamma_l = 2
+            gamma_r = 1
 
             self.mazes.append(Maze(self.A, self.B, theta_l = theta_l, theta_r = theta_r, 
                                             gamma_l=gamma_l, gamma_r=gamma_r))
@@ -276,9 +290,11 @@ class Environment(Params):
 # ---------------------------------------------------------------------------- #
 class Agent:
     alive = True
-    mutation_std = 0.1
 
-    def __init__(self, parent_genome={}):
+    def __init__(self, parent_genome={}, genome_penalty=None, genome_mutation_std=None):
+        self.genome_penalty = genome_penalty
+        self.genome_mutation_std = genome_mutation_std
+
         # get genes
         p_take_small_theta = parent_genome.pop('p_take_small_theta', None)
         p_take_small_geodesic = parent_genome.pop('p_take_small_geodesic', None)
@@ -364,7 +380,7 @@ class AgentNN(Agent):
         if weights is None: 
             weights = npr.uniform(-1, 1, 4*1).reshape(1, 4) # 4 input variables, 1 output variables
         else:
-            weights += npr.normal(0, .1, 4*1).reshape(1, 4) 
+            weights += npr.normal(0, self.genome_mutation_std, 4*1).reshape(1, 4) 
 
         self.genome = weights
         self.fitness = np.nan
@@ -378,15 +394,8 @@ class AgentNN(Agent):
         if theta_l is None: raise NotImplementedError
 
         inputs = np.array([length_l, length_r, theta_l, theta_r])
-
         output = np.dot(self.genome, inputs)
-        # yhat = output[0] / np.sum(output)
-        
-        # if coin_toss(th=yhat):
-        #     return 'left', None
-        # else:
-        #     return 'right', None
-
+ 
         if output >= 0:
             return 'right', None
         else:
@@ -403,7 +412,7 @@ class AgentNN(Agent):
         return self.fitness < other.fitness
 
     def get_fitness(self):
-        self.fitness = np.nanmean(self.corrects) #+ np.sum(self.genome)
+        self.fitness = np.nanmean(self.corrects) - np.sum(np.abs(self.genome)) * self.genome_penalty
 
 # ---------------------------------------------------------------------------- #
 #                                  POPULATION                                  #
@@ -414,7 +423,9 @@ class Population(Environment):
         Environment.__init__(self, **kwargs)
 
         self.gen_num = 0
-        self.agents = [self.agent_class() for i in range(self.N_agents)]
+        self.agents = [self.agent_class(genome_penalty = self.genome_penalty,
+                                        genome_mutation_std = self.genome_mutation_std) 
+                        for i in range(self.N_agents)]
 
         self.stats = dict(
             world_p_short = [],
@@ -464,7 +475,9 @@ class Population(Environment):
         while n_agents < self.N_agents:
             # choose a random parent weighted by fitness
             parent = choices(self.agents, fitnesses, k=1)[0]
-            new_gen.append(self.agent_class(weights = parent.genome.copy())) 
+            new_gen.append(self.agent_class(weights = parent.genome.copy(), 
+                                        genome_penalty = self.genome_penalty,
+                                        genome_mutation_std = self.genome_mutation_std,)) 
             n_agents += 1
         self.agents.extend(new_gen)
 
@@ -472,13 +485,14 @@ class Population(Environment):
             agent.reset()
 
     def save_agents(self):
-        fld = os.path.join(self.save_fld, 'gen_'+str(self.gen_num))
-        if not os.path.isdir(fld):
-            os.mkdir(fld)
+        if self.save_on:
+            fld = os.path.join(self.save_fld, 'gen_'+str(self.gen_num))
+            if not os.path.isdir(fld):
+                os.mkdir(fld)
 
-        for n, agent in enumerate(sorted(self.agents)[::-1]):
-            if n <= self.save_best_n_agents:
-                np.save(os.path.join(fld, f"gen{self.gen_num}_ag_{n}_f_{agent.fitness}.npy"), agent.genome)
+            for n, agent in enumerate(sorted(self.agents)[::-1]):
+                if n <= self.save_best_n_agents:
+                    np.save(os.path.join(fld, f"gen{self.gen_num}_ag_{n}_f_{agent.fitness}.npy"), agent.genome)
 
 
     def update_stats(self):
@@ -494,14 +508,16 @@ class Population(Environment):
         self.stats['perc_survivors'].append(self.perc_survivors)
         self.stats['maze_asymmetry'].append(self.get_mazes_asymmetry())
 
-        # if self.gen_num % 250 == 0:
-        #     print(f"\nGeneration {self.gen_num}\n"+
-        #             f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
-        #             f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"+
-        #             f"  Average maze asymmetry: {round(self.stats['maze_asymmetry'][-1], 2)}\n"
-        #         )
+        if self.verbose:
+            if self.gen_num % 250 == 0:
+                print(f"\nGeneration {self.gen_num}\n"+
+                        f"  Probability correct choice: {round(self.stats['agents_p_correct'][-1], 2)}\n"+
+                        f"  Percentage surviving agents: {round(self.stats['perc_survivors'][-1], 2)}\n"+
+                        f"  Average maze asymmetry: {round(self.stats['maze_asymmetry'][-1], 2)}\n"
+                    )
 
     def plot(self):
+        # Plot stats
         f, ax = plt.subplots(figsize=(12, 6))
 
         for k,v in self.stats.items():
@@ -515,7 +531,18 @@ class Population(Environment):
         ax.legend()
         ax.set(xlabel='# generations', ylabel='probability shortcut')
 
-        save_figure(f, os.path.join(self.save_fld, 'res.svg'), svg=True)
+        save_figure(f, os.path.join(self.save_fld, 'res'), svg=False)
+
+        # Plot population genome
+        data = np.array([agent.genome[0] for agent in self.agents])[0, :]
+        data = pd.DataFrame(dict(left_length=data[:, 0],
+                                right_length=data[:, 1],
+                                left_theta=data[:, 2],
+                                right_theta=data[:, 3],
+                                ))
+        sns.barplot(x="gene", y="value", data=data, ax=ax)
+        
+
 
 
     def evolve(self):
