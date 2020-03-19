@@ -139,7 +139,7 @@ class TrialsLoader(Bayes):
         n_mice = {c:len(v) for c,v in hits.items()}
         return hits, ntrials, p_r, n_mice, trs
 
-    def bayes_by_dataset_analytical(self, datasets=None):
+    def grouped_bayes_by_dataset_analytical(self, datasets=None):
         if datasets is None: datasets = self.datasets
 
         results = {"dataset":[], "alpha":[], "beta":[], "mean":[],      
@@ -159,3 +159,24 @@ class TrialsLoader(Bayes):
             results['distribution'].append(res[6])
 
         return pd.DataFrame(results)
+
+    def individuals_bayes_by_dataset_hierarchical(self, datasets=None, **kwargs):
+        if datasets is None: datasets = self.datasets
+
+        results = dict(dataset=[], traces=[], means=[], stds=[])
+
+        hits, ntrials, p_r, n_mice, trials = self.get_binary_trials_per_dataset(datasets)
+
+        for cond in hits.keys():
+            nhits, ntrs, nmice = hits[cond], ntrials[cond], n_mice[cond]
+
+            res = self.individuals_hierarchical_bayes(nmice, nhits, ntrs, **kwargs)
+
+            results['dataset'].append(cond)
+            results['traces'].append(res[0])
+            results['means'].append(res[1])
+            results['stds'].append(res[2])
+
+        return pd.DataFrame(results)
+
+        

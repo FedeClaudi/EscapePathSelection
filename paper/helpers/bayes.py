@@ -11,7 +11,8 @@ import pickle
 import pydot
 
 from fcutils.maths.stats import percentile_range
-from fcutils.maths.distributions import get_parametric_distribution
+from fcutils.maths.distributions import get_parametric_distribution, beta_distribution_params
+
 
 class Bayes:
     # Bayes hyper params
@@ -45,7 +46,49 @@ class Bayes:
         prange = percentile_range(beta)
 
         return (a2, b2, mean, mode, sigmasquared, prange, beta)
-     
+
+
+    def individuals_hierarchical_bayes(self, N, K, N_trials, **kwargs):
+        """
+        :param N: number of individuals
+        :param K: number of hits per individual
+        :param N_trials: number of trials for each individual
+        """
+
+        trace_length = kwargs.pop("trace_length", 5000)
+        tune_length = kwargs.pop("tune_length", 500)
+        n_cores = kwargs.pop("n_cores", 2)
+
+        # bayes param
+        print(f"Fitting hierarchical model for {N} mice")
+        with pm.Model() as model:
+            # Define hyperparams
+            modes_hyper = pm.Beta("mode_hyper", 
+                                        alpha=self.hyper_mode[0], beta=self.hyper_mode[1])
+            concentrations_hyper = pm.Gamma("concentration_hyper", 
+                                        alpha=self.k_hyper_shape, beta=self.k_hyper_rate)
+
+            # Define priors
+            prior_a, prior_b = beta_distribution_params(omega=modes_hyper, kappa=concentrations_hyper)
+            prior = pm.Beta("beta_prior", alpha=prior_a, beta=prior_b, shape=N)
+
+            # Define likelihood
+            likelihood = pm.Binomial("likelihood", n=N_trials, p=prior, observed=K)
+
+            # Fit
+            trace = pm.sample(trace_length, tune=tune_length, cores=n_cores, 
+                                nuts_kwargs={'target_accept': 0.99}, progressbar=True)
+        
+        # Extract stats from traces
+        trace = pm.trace_to_dataframe(trace)
+
+        posteriors = [trace[c].values for c in trace.columns if 'beta_prior' in c]
+        means = [np.mean(p) for p in posteriors]
+        stds = [np.std(p) for p in posteriors]
+
+        return trace, means, stds
+
+
 
     """
         DATA IO UTILS
@@ -70,35 +113,6 @@ class Bayes:
     """
         ANALYSIS
     """
-
-
-        
-
-    # def model_hierarchical_bayes(self, conditions): # ? using PyMC3
-    #     hits, ntrials, p_r, n_mice, _ = self.get_binary_trials_per_condition(conditions)
-
-    #     # Create model and fit
-    #     n_conditions = len(list(conditions.keys()))
-    #     print("Fitting bayes to conditions:", list(conditions.keys()))
-    #     with pm.Model() as model:
-    #         # Define hyperparams
-    #         modes_hyper = pm.Beta("mode_hyper", alpha=self.hyper_mode[0], beta=self.hyper_mode[1], shape=n_conditions)
-    #         concentrations_hyper = pm.Gamma("concentration_hyper", alpha=self.k_hyper_shape, beta=self.k_hyper_rate, shape=n_conditions)
-
-    #         # Define priors
-    #         for i, condition in enumerate(conditions.keys()):
-    #             prior_a, prior_b = beta_distribution_params(omega=modes_hyper[i], kappa=concentrations_hyper[i])
-    #             prior = pm.Beta("{}_prior".format(condition), alpha=prior_a, beta=prior_b, shape=len(ntrials[condition]))
-    #             likelihood = pm.Binomial("{}_likelihood".format(condition), n=ntrials[condition], p=prior, observed=hits[condition])
-
-    #         # Fit
-    #         print("Got all the variables, starting NUTS sampler")
-    #         self.save_model_image(model, os.path.join("D:\\Dropbox (UCL - SWC)\\Rotation_vte\\plots\\00_Psychometric", "hb"))
-    #         # trace = pm.sample(6000, tune=500, cores=2, nuts_kwargs={'target_accept': 0.99}, progressbar=True)
-
-    #         # pm.traceplot(trace)
-    #         plt.show()
-    #     return trace
 
     # def analytical_bayes_individuals(self, conditions=None, data=None, mode="individuals", plot=True):
     #     """

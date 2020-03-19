@@ -4,7 +4,7 @@
 # path lengths are expressed in MM
 
 # ------------------------------------ m0 ------------------------------------ #
-m0:
+maze0:
   maze_id: 0
   maze_name: 'm0'
   left_path_length: 1085
@@ -20,7 +20,7 @@ m0:
 
 
 # ------------------------------------ m1 ------------------------------------ #
-m1:
+maze1:
   maze_id: 1
   maze_name: 'm1'
   left_path_length: 1085
@@ -33,7 +33,7 @@ m1:
 
   has_catwalk: 1
 
-m1-dark:
+maze1-dark:
   maze_id: 1
   maze_name: 'm1'
   left_path_length: 1085
@@ -46,7 +46,7 @@ m1-dark:
 
   has_catwalk: 1
 
-m1-light:
+maze1-light:
   maze_id: 1
   maze_name: 'm1'
   left_path_length: 1085
@@ -60,7 +60,7 @@ m1-light:
   has_catwalk: 1
 
 # ------------------------------------ m2 ------------------------------------ #
-m2:
+maze2:
   maze_id: 2
   maze_name: 'm2'
   left_path_length: 872
@@ -76,7 +76,7 @@ m2:
 
 
 # ------------------------------------ m3 ------------------------------------ #
-m3:
+maze3:
   maze_id: 3
   maze_name: 'm3'
   left_path_length: 770
@@ -92,7 +92,7 @@ m3:
 
 
 # ------------------------------------ m4 ------------------------------------ #
-m4:
+maze4:
   maze_id: 4
   maze_name: 'm4'
   left_path_length: 505
@@ -108,7 +108,7 @@ m4:
 
 
 # ------------------------------------ m6------------------------------------ #
-m6:
+maze6:
   maze_id: 6
   maze_name: 'm6'
   left_path_length: 1085

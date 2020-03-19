@@ -17,14 +17,14 @@ from fcutils.plotting.colors import makePalette
 
 palette = makePalette(green, orange, 7 , False)
 maze_colors = {
-    'm0': darkgreen,
-    'm1': palette[0],
-    'm1-dark': darkred, 
-    'm1-light': red, 
-    'm2': palette[1],
-    'm3': palette[2],
-    'm4': palette[3],
-    'm6': salmon,
+    'maze0': darkgreen,
+    'maze1': palette[0],
+    'maze1-dark': darkred, 
+    'maze1-light': red, 
+    'maze2': palette[1],
+    'maze3': palette[2],
+    'maze4': palette[3],
+    'maze6': salmon,
     'mb': palette[4],
     'mb1': palette[4],
     'mb2': palette[5]
@@ -39,10 +39,10 @@ arms_colors = {
 
 
 
-psychometric_mazes = ["m1", "m2", "m3", "m4"]
-psychometric_mazes_and_dark = ["m1", "m2", "m3", "m4", "m1-dark"]
-five_mazes = ["m1", "m2", "m3", "m4", "m6"]
-m6 = ["m6"]
-m0 = ["m0"]
-allmazes = ["m1", "m2", "m3", "m4", "m6", "mb"]
+psychometric_mazes = ["maze1", "maze2", "maze3", "maze4"]
+psychometric_mazes_and_dark = ["maze1", "maze2", "maze3", "maze4", "maze1-dark"]
+five_mazes = ["maze1", "maze2", "maze3", "maze4", "maze6"]
+m6 = ["maze6"]
+m0 = ["maze0"]
+allmazes = ["maze1", "maze2", "maze3", "maze4", "maze6", "mb"]
 arms = ['left', 'right', 'center']
