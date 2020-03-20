@@ -44,7 +44,11 @@ class TrialsLoader(Bayes):
         self.catwalk = catwalk
         self.experiment_name = experiment_name
 
+        self.datasets = {}
 
+    # ---------------------------------------------------------------------------- #
+    #                                 GETTING DATA                                 #
+    # ---------------------------------------------------------------------------- #
 
     def load_psychometric(self):
         self.datasets = dict(
@@ -87,8 +91,10 @@ class TrialsLoader(Bayes):
         ss = set(sorted(sessions.uid.values))
         trials = all_trials.loc[all_trials.uid.isin(ss)]
 
-        return trials
+        # Augment the trials dataframe
+        trials = self.augment_trials_dataframe(trials)
 
+        return trials
 
     def get_sessions_by_condition(self, maze_design, df=True):
         """ Query the DJ database table AllTrials for the trials that match the conditions """
@@ -116,6 +122,26 @@ class TrialsLoader(Bayes):
         else: 
             return data
 
+
+    def augment_trials_dataframe(self, trials):
+        """
+            Adds stuff like time of stim onset in seconds etc...
+        """
+        # Get the stim time in seconds
+        trials['stim_time_s'] = trials['stim_frame'] / trials['fps']
+
+        # Get the stim number in each session
+        session_stim_number = []
+        sessions = set(trials.session_name)
+        for sess in sessions:
+            sess_trials = trials.loc[trials.session_name == sess]
+            session_stim_number.extend([i for i in np.arange(len(sess_trials))])
+        trials['trial_num_in_session'] = session_stim_number
+        return trials
+
+    # ---------------------------------------------------------------------------- #
+    #                                   ANALYSIS                                   #
+    # ---------------------------------------------------------------------------- #
 
     def get_binary_trials_per_dataset(self, datasets=None, ignore_center=True):
         # ? datasets should be a dict whose keys should be a list of strings with the names of the different datasets to be modelled

@@ -33,7 +33,7 @@ from paper.helpers.mazes_stats import get_mazes
 print("Loading data")
 params = dict(
     naive = None,
-    lights = None, 
+    lights = 1, 
     tracking = 'all'
 )
 
@@ -73,6 +73,7 @@ try:
 except Exception as e:
     print(f"Couldnt load because of {e}")
     hierarchical_pRs = trials.individuals_bayes_by_dataset_hierarchical()
+    hierarchical_pRs.to_hdf(cache_path, key='hdf')
 
 # ----------------------------- Get mazes metadata ---------------------------- #
 print("Mazes stats")
@@ -83,10 +84,12 @@ mazes = {k:m for k,m in mazes.items() if k in paper.psychometric_mazes}
 
 
 # %%
-
 # ---------------------------------------------------------------------------- #
 #                                 Psychometric                                 #
 # ---------------------------------------------------------------------------- #
+
+# ? Options
+PLOT_INDIVIDUALS = False
 
 # ------------------------------- Prepare Data ------------------------------- #
 X_labels = list(trials.datasets.keys())
@@ -96,7 +99,7 @@ Y = grouped_pRs['mean'].values
 # Y error is used for fitting
 pranges = grouped_pRs['prange']
 # Y_err = np.array([[y - prange.low, prange.high - y] for y,prange in zip(Y, pranges)])
-Y_err = [sqrt(v) for v in grouped_pRs['sigmasquared']]
+Y_err = [sqrt(v)*2 for v in grouped_pRs['sigmasquared']]
 
 # Colors
 colors = [paper.maze_colors[m] for m in X_labels]
@@ -116,16 +119,13 @@ for x,y,yerr,color in zip(X, Y, Y_err, colors):
 
 
 # ------------------------ Plot indidividuals scatter ------------------------ #
-for x, dset, color in zip(X, X_labels, colors):
-    ys = hierarchical_pRs.loc[hierarchical_pRs.dataset == dset]['means'].values[0]
-    xs = np.random.normal(x, .01, size=len(ys))
-    color = desaturate_color(color)
+if PLOT_INDIVIDUALS:
+    for x, dset, color in zip(X, X_labels, colors):
+        ys = hierarchical_pRs.loc[hierarchical_pRs.dataset == dset]['means'].values[0]
+        xs = np.random.normal(x, .01, size=len(ys))
+        color = desaturate_color(color)
 
-    ax.scatter(xs, ys, color=color, s=50, ec=[.2, .2, .2], alpha=.5, zorder=98)
-
-
-
-
+        ax.scatter(xs, ys, color=color, s=50, ec=[.2, .2, .2], alpha=.5, zorder=98)
 
 # ------------------------------ Fit/Plot curve ------------------------------ #
 curve_params = plot_fitted_curve(centered_logistic, X, Y, ax, xrange=[xmin, xmax], 
@@ -149,6 +149,18 @@ save_figure(f, os.path.join(paths.plots_dir, 'psychometric'), svg=True)
 
 
 
+
+
+
+# %%
+# --------------------------- Plot n trials summary -------------------------- #
+summary = pd.DataFrame(dict(
+    maze=X_labels,
+    tot_trials = [len(trials.datasets[m]) for m in X_labels],
+    n_mice = list(n_mice.values()),
+    avg_n_trials_per_mouse = [np.mean(nt) for nt in list(ntrials.values())]
+))
+summary
 
 
 
