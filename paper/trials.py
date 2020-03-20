@@ -56,6 +56,7 @@ class TrialsLoader(Bayes):
                 maze2 =  self.load_trials_by_condition(maze_design=2),
                 maze3 =  self.load_trials_by_condition(maze_design=3),
                 maze4 =  self.load_trials_by_condition(maze_design=4),
+                maze6 =  self.load_trials_by_condition(maze_design=6),
                             )
 
     def load_trials_by_condition(self, maze_design=None):
