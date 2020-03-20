@@ -15,7 +15,7 @@ import numpy as np
 
 class TrialsLoader(Bayes):
     max_duration_th = 9 # ? only trials in which the mice reach the shelter within this number of seconds are considered escapes (if using escapes == True)
-    shelter_location = [500, 650]
+    shelter_location = [500, 850]
 
     naive_lookup = {0: "experienced", 1:"naive", -1:"nan"}
     lights_lookup = {0: "off", 1:"on", 2:"on_trials", 3:"on_exploration", -1:"nan"}

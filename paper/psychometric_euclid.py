@@ -1,8 +1,3 @@
-"""
-Analysis script for psychometric plot
-"""
-
-
 # %%
 # Imports
 import sys
@@ -25,7 +20,7 @@ from fcutils.maths.distributions import get_distribution
 import paper
 from paper import paths
 from paper.trials import TrialsLoader
-from paper.helpers.mazes_stats import get_mazes
+from paper.helpers.mazes_stats import get_mazes, get_euclidean_dist_for_dataset
 
 
 
@@ -80,8 +75,21 @@ except Exception as e:
 print("Mazes stats")
 _mazes = get_mazes()
 
+euclidean_dists = get_euclidean_dist_for_dataset(trials.datasets, trials.shelter_location)
+mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
+
+mazes_stats = pd.DataFrame(dict(
+    maze = list(mazes.keys()),
+    geodesic_ratio = [v['ratio'] for v in mazes.values()],
+    euclidean_ratio = list(euclidean_dists.values(),)
+))
+mazes_stats
 
 
+
+
+# TODO fit GLM to both metrics
+# TODO plot psychometric with both metrics
 
 # %%
 # ---------------------------------------------------------------------------- #
@@ -125,7 +133,7 @@ else:
 
 
 # Colors
-xmin, xmax = 0.2, .8
+xmin, xmax = -1, 3
 
 # Create figure
 f, ax = create_figure(subplots=False, figsize=(16, 10))
@@ -144,7 +152,7 @@ for x,y,yerr,color in zip(X, Y, Y_err, colors):
 if PLOT_INDIVIDUALS:
     for x, dset, color in zip(X, X_labels, colors):
         ys = hierarchical.loc[hierarchical.dataset == dset]['means'].values[0]
-        xs = np.random.normal(x, .002, size=len(ys))
+        xs = np.random.normal(x, .01, size=len(ys))
         color = desaturate_color(color)
 
         ax.scatter(xs, ys, color=color, s=50, ec=[.2, .2, .2], alpha=.5, zorder=98)
@@ -171,59 +179,3 @@ save_figure(f, os.path.join(paths.plots_dir, f'psychometric_M6_{ADD_M6}_individu
 
 
 
-
-# %%
-# ----------------------------- Maze 4 vs maze 6 ----------------------------- #
-f, axarr = create_figure(subplots=True, ncols=2, figsize=(16, 10))
-
-X_labels =['Maze4', 'Maze6']
-A = grouped_pRs.loc[grouped_pRs.dataset.isin(['maze4', 'maze6'])]['alpha'].values
-B = grouped_pRs.loc[grouped_pRs.dataset.isin(['maze4', 'maze6'])]['beta'].values
-_colors = colors[-2:]
-
-# Plot posteriors for the two mazes
-dists = []
-for a, b, label, color in zip(A, B, X_labels, _colors):
-    beta = get_distribution('beta', a, b, n_samples=80000)
-    dists.append(beta)
-    plot_kde(ax=axarr[0], data=beta, vertical=True, z=0, 
-                color=color, label=label)
-
-axarr[0].legend()
-axarr[0].axhline(0.5, ls=':', color=[.6, .6, .6])
-_ = axarr[0].set(title='Maze 4 vs Maze 6 | p(R)', 
-        xlabel='density', 
-        ylabel='p(R)', 
-        ylim=[0, 1], 
-    )
-
-
-# Plot delta of the posteriors
-delta = dists[0] - dists[1]
-plot_kde(ax=axarr[1], data=delta, vertical=True, z=0, 
-            color=[.4, .4, .4], label='M4 - M6')
-axarr[1].axhline(0, ls=':', color=[.6, .6, .6])
-_ = axarr[1].set(title='Maze 4 - Maze 6 | p(R)', 
-        xlabel='delta p(R) [M4 - M6]', 
-        ylabel='p(R)', 
-        ylim=[-.5, .5], 
-    )
-
-
-clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, 'm4_m6_pR'), svg=True)
-
-
-# %%
-# --------------------------- Print n trials summary -------------------------- #
-summary = pd.DataFrame(dict(
-    maze=X_labels,
-    tot_trials = [len(trials.datasets[m]) for m in X_labels],
-    n_mice = list(n_mice.values()),
-    avg_n_trials_per_mouse = [np.mean(nt) for nt in list(ntrials.values())]
-))
-summary
-
-
-
-# %%

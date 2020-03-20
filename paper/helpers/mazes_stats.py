@@ -1,16 +1,31 @@
 import sys
 sys.path.append('./')
 
+import numpy as np
 
 from fcutils.file_io.io import load_yaml
+from fcutils.maths.geometry import calc_distance_from_point
 
 def get_mazes():
     maze_metadata_file = '/Users/federicoclaudi/Documents/Github/EscapePathSelection/paper/dbase/Mazes_metadata.yml'
     mazes = load_yaml(maze_metadata_file)
 
     for maze, metadata in mazes.items():
-        mazes[maze]['ratio'] = metadata['left_path_length']/metadata['right_path_length']
+        mazes[maze]['ratio'] = metadata['left_path_length']/(metadata['right_path_length'] + metadata['left_path_length'])
     return mazes
+
+def get_euclidean_dist_for_dataset(datasets, shelter_pos):
+    eucl_dists = {}
+    for name, data in datasets.items():
+        means = {a:[] for a in ['left', 'right']}
+        for n, trial in data.iterrows():
+            if trial.escape_arm == "center": continue
+
+            d = calc_distance_from_point(trial.body_xy[trial.out_of_t_frame-trial.stim_frame:, :], shelter_pos)
+            means[trial.escape_arm].append(np.mean(d))
+
+        eucl_dists[name] = np.nanmean(means['left'])/(np.nanmean(means['right']) + np.nanmean(means['left']))
+    return eucl_dists
 
 if __name__ == '__main__':
     get_mazes()
