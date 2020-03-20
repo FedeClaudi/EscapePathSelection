@@ -136,6 +136,7 @@ for condition, trials in ea.conditions.items():
         all_trials['geodist'].append(mazes[condition]['ratio'])
         all_trials['eucldist'].append(euclidean_dists[condition])
 
+
     summary['geodist'].append(mazes[condition]['ratio'])
     summary['eucldist'].append(euclidean_dists[condition])
     summary['k'].append(k)

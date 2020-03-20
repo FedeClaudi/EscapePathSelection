@@ -9,7 +9,10 @@ import pandas as pd
 import os
 from math import sqrt
 
+import statsmodels.api as sm
+
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
+from fcutils.plotting.colors import *
 from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.maths.distributions import centered_logistic
@@ -86,10 +89,81 @@ mazes_stats = pd.DataFrame(dict(
 mazes_stats
 
 
+# %%
+# ---------------------------- GLM  --------------------------- #
+
+# Get trials summary statistics per maze
+summary = dict(maze = [],
+                geodesic_ratio=[], 
+                euclidean_ratio=[], 
+                n=[],  # number of trials
+                k=[],  # numebr of hits
+                m=[],    # n - k
+                )
+
+for maze in hits.keys():
+    summary['maze'].append(maze)
+    summary['geodesic_ratio'].append(mazes_stats.loc[mazes_stats.maze == maze].geodesic_ratio.values[0])
+    summary['euclidean_ratio'].append(mazes_stats.loc[mazes_stats.maze == maze].euclidean_ratio.values[0])
+    summary['n'].append(np.sum(ntrials[maze]))
+    summary['k'].append(np.sum(hits[maze]))
+    summary['m'].append(summary['n'][-1] - summary['k'][-1])
+summary= pd.DataFrame(summary)
+
+# Fit model
+exog = summary[['geodesic_ratio', 'euclidean_ratio']]
+exog = sm.add_constant(exog, prepend=False)
+endog = summary[['k', 'm']]
+
+glm_binom = sm.GLM(endog, exog, family=sm.families.Binomial())
+res = glm_binom.fit()
 
 
-# TODO fit GLM to both metrics
-# TODO plot psychometric with both metrics
+# Predict mazes p(R) from model
+nobs = res.nobs
+y = endog['k']/endog.sum(1)
+yhat = res.mu
+
+
+f, ax = create_figure(subplots=False)
+
+ax.scatter(mazes_stats.geodesic_ratio, mazes_stats.euclidean_ratio, 
+                    c=grouped_pRs['mean'],
+                    ec='k',
+                    lw=2,
+                    cmap='bwr', 
+                    vmin=0, vmax=1, 
+                    s=400)
+
+# Plot a line over where pR = 0.5
+x0 = np.linspace(0, 1, num=250)
+# x1 = [(-res.params['const']/res.params['geodesic_ratio'] - (res.params['euclidean_ratio']/res.params['geodesic_ratio'])*x) for x in x0]
+# ax.plot(x0, x1, color=black)
+
+# predict p(R) for a range of values
+predicted_pr = np.zeros((len(x0), len(x0)))
+for i, x in enumerate(x0):
+    for ii, x2 in enumerate(x0):
+        predicted_pr[i, ii] = glm_binom.predict(res.params, [x, x2, 1])
+
+ax.imshow(predicted_pr, vmin=0, vmax=1, cmap='bwr', 
+                        extent=[0, 1, 0, 1], origin='lower',
+                    )
+
+
+# style axes
+ax.set(title="Logistic model predicting p(R) based on euclidean and geodesic ratio",
+        xlabel='Geodesic ratio', ylabel='Euclidean ratio',
+        xlim=[0,  1], 
+        ylim=[0, 1])
+
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'GLM_pR_prediction'), svg=True)
+
+
+
+
 
 # %%
 # ---------------------------------------------------------------------------- #
