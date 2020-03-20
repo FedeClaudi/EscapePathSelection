@@ -153,7 +153,7 @@ save_figure(f, os.path.join(paths.plots_dir, 'psychometric'), svg=True)
 
 
 # %%
-# --------------------------- Plot n trials summary -------------------------- #
+# --------------------------- Print n trials summary -------------------------- #
 summary = pd.DataFrame(dict(
     maze=X_labels,
     tot_trials = [len(trials.datasets[m]) for m in X_labels],
