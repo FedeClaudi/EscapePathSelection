@@ -40,13 +40,13 @@ class Params:
     change_maze_every = 25
     N_mazes = 50
     N_agents = 100
-    N_generations = 500
+    N_generations = 1000
     p_short = 0
     x_minmax = 1
     save_agents_every = 250
     save_best_n_agents = 5
 
-    genome_penalty = 1
+    genome_penalty = .1
     genome_mutation_std = .1
     
     save_on = False
@@ -222,15 +222,12 @@ class Environment(Params):
         for i in np.arange(self.N_mazes):
             gamma = npr.uniform(0, self.x_minmax)
 
-            # theta_l = -round(np.radians(npr.uniform(1, 180)), 2)
-            # theta_r = round(np.radians(npr.uniform(1, 180)), 2)
-            theta_l = - round(np.radians(45), 2)
-            theta_r = round(np.radians(45), 2)
+            theta_l = -round(np.radians(npr.uniform(1, 180)), 2)
+            theta_r = round(np.radians(npr.uniform(1, 180)), 2)
 
-            # gamma_l = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
-            # gamma_r = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
-            gamma_l = 2
-            gamma_r = 1
+
+            gamma_l = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
+            gamma_r = round(npr.uniform(self.AB*.2, self.AB*.6), 2)
 
             self.mazes.append(Maze(self.A, self.B, theta_l = theta_l, theta_r = theta_r, 
                                             gamma_l=gamma_l, gamma_r=gamma_r))
@@ -534,13 +531,22 @@ class Population(Environment):
         save_figure(f, os.path.join(self.save_fld, 'res'), svg=False)
 
         # Plot population genome
-        data = np.array([agent.genome[0] for agent in self.agents])[0, :]
-        data = pd.DataFrame(dict(left_length=data[:, 0],
-                                right_length=data[:, 1],
-                                left_theta=data[:, 2],
-                                right_theta=data[:, 3],
-                                ))
-        sns.barplot(x="gene", y="value", data=data, ax=ax)
+        f, ax = plt.subplots(figsize=(12, 6))
+        data = np.array([agent.genome[0] for agent in self.agents])
+        plot_best_n = 50
+
+        data = dict(
+                    # left_length=data[:plot_best_n, 0],
+                    # right_length=data[:plot_best_n, 1],
+                    # left_theta=data[:plot_best_n, 2],
+                    # right_theta=data[:plot_best_n, 3],
+                    geodesic_weight = np.abs(data[:plot_best_n, 0]) + np.abs(data[:plot_best_n, 1]),
+                    euclidean_weight = np.abs(data[:plot_best_n, 2]) + np.abs(data[:plot_best_n, 3]),
+                                )
+        
+        for k,v in data.items():
+            plot_kde(data=v, ax=ax, label=k)
+        ax.legend()
         
 
 
