@@ -93,11 +93,6 @@ mazes_stats
 
 
 
-
-
-
-
-
 # %%
 
 # ---------------------------------------------------------------------------- #
@@ -173,21 +168,6 @@ clean_axes(f)
 # for maze, preds in predicts.items():
 #     ax.errorbar(grouped_pRs.loc[grouped_pRs.dataset == maze]['mean'].values[0], np.mean(preds), 
 #                     yerr=np.std(preds))
-
-
-
-
-
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
 
 # %%
 # ----------------------------- Plot as a heatmap ---------------------------- #
