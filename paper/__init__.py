@@ -1,5 +1,5 @@
 # Datajoint
-import djconn
+from paper import djconn
 dbname, schema = djconn.start_connection()
 
 # Paths

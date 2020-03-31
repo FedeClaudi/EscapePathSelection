@@ -123,7 +123,6 @@ class TrialsLoader(Bayes):
         else: 
             return data
 
-
     def augment_trials_dataframe(self, trials):
         """
             Adds stuff like time of stim onset in seconds etc...
@@ -139,6 +138,12 @@ class TrialsLoader(Bayes):
             session_stim_number.extend([i for i in np.arange(len(sess_trials))])
         trials['trial_num_in_session'] = session_stim_number
         return trials
+
+    def get_datasets_sessions(self):
+        self.datasets_sessions = {ds:{'session_name':trs.session_name.unique(), 'uid':trs.uid.unique()} 
+                    for ds, trs in self.datasets.items()}
+        return self.datasets_sessions
+
 
     # ---------------------------------------------------------------------------- #
     #                                   ANALYSIS                                   #

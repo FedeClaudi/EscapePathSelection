@@ -1,6 +1,8 @@
 
 import datajoint as dj
 
+import numpy as np
+
 from paper.dbase.TablePopulateFuncsV4 import *
 from paper import schema
 
@@ -354,15 +356,76 @@ class Explorations(dj.Imported):
 		---
 		start_frame: int
 		end_frame: int
-		total_travel: float               # Total distance covered by the mouse
-		tot_time_in_shelter: float        # Number of seconds spent in the shelter
-		tot_time_on_threat: float         # Number of seconds spent on threat platf
-		duration: float                   # Total duration of the exploration in seconds
-		median_vel: float                  # median velocity in px/s 
+		body_tracking: longblob
+		maze_roi: longblob
+		duration_s: float
+		distance_covered: float
+		fps: int
 	"""
 
 	def make(self, key):
-		make_exploration_table(self, key)
+		# Get session's recording
+		recs = (Recording & key).fetch("recording_uid")
+		if not np.any(recs): return
+
+		# Get the first stimulus of the session
+		recs_lengs = []
+		first_stim = []
+		rec_n = 0
+		while not first_stim:
+			first_stim = list((Stimuli & key & f"recording_uid='{recs[rec_n]}'" & "duration != -1").fetch("overview_frame"))
+			if first_stim: break
+			rec_n += 1
+			if rec_n == len(recs):
+				return # ! no stimuli for that session
+		
+		# Get comulative frame numbers and concatenated tracking
+		trackings = []
+		n_frames = []
+		for rec in recs:
+			try:
+				trk = (TrackingData * TrackingData.BodyPartData & key & f"recording_uid='{rec}'" & "bpname='body'").fetch("tracking_data")[0]
+			except:
+				return
+			n_frames.append(trk.shape[0])
+			trackings.append(trk)
+		cum_n_frames = np.cumsum(n_frames)
+
+		# Get concatenated frame number of first stim
+		first_stim = first_stim[0]-1
+		if rec_n:
+			first_stim += cum_n_frames[rec_n-1]
+
+		# Get tracking up to first stim
+		tracking = np.vstack(trackings)
+		like = (TrackingData * TrackingData.BodyPartData & key & f"recording_uid='{recs[0]}'" & "bpname='body'").fetch("likelihood")[0]
+		start = np.where(like > 0.9999)[0][0]
+
+		if start>first_stim or first_stim>tracking.shape[0]: raise ValueError
+
+		tracking = tracking[start:first_stim, :]
+
+
+		# Put evreything together and isert
+		if key['uid'] < 184: 
+			fps = 30
+		else: 
+			fps=40
+
+		duration = tracking.shape[0]/fps
+		d_covered = np.nansum(tracking[:, 2])
+		maze_roi = tracking[:, -1]
+
+		key['body_tracking'] = tracking
+		key['start_frame'] = start
+		key['end_frame'] = first_stim
+		key['maze_roi'] = maze_roi
+		key['duration_s'] = duration
+		key['distance_covered'] = d_covered
+		key['fps'] = fps
+
+		self.insert1(key)
+
 
 
 
