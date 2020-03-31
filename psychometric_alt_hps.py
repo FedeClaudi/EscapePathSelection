@@ -79,12 +79,44 @@ _mazes = get_mazes()
 #                           EFFECT OF ORIGIN ANALYSIS                          #
 # ---------------------------------------------------------------------------- #
 
-for n, (ds, trs) in enumerate(trials.datasets.items()):
+f, ax = plt.subplots(figsize=(16, 9))
+
+# Do grouped bayes on trials within each dataset grouped by arm of origin
+for dn, (ds, trs) in enumerate(trials.datasets.items()):
     l_origin = trs.loc[trs.origin_arm == 'left']
     r_origin = trs.loc[trs.origin_arm == 'right']
 
     dsets = dict(left=l_origin, right=r_origin)
-    hits, ntrials, p_r, n_mice, trials = trials.get_binary_trials_per_dataset(dsets)
+    hits, ntrials, p_r, n_mice, trs = trials.get_binary_trials_per_dataset(dsets)
+
+    results = {"dataset":[], "alpha":[], "beta":[], "mean":[],      
+                "median":[], "sigmasquared":[], "prange":[],
+                "distribution":[],}
+    for (cond, h), n in zip(hits.items(), ntrials.values()):
+        res = trials.grouped_bayes_analytical(np.sum(n), np.sum(h))
+        results['dataset'].append(cond)
+        results['alpha'].append(res[0])
+        results['beta'].append(res[1])
+        results['mean'].append(res[2])
+        results['median'].append(res[3])
+        results['sigmasquared'].append(res[4])
+        results['prange'].append(res[5])
+        results['distribution'].append(res[6])
+
+    results = pd.DataFrame(results)
+
+    ax.scatter(dn-.1, results['mean'][0], color=paper.maze_colors[ds], s=250)
+    ax.scatter(dn+.1, results['mean'][1], color=desaturate_color(paper.maze_colors[ds]), s=250)
+    ax.errorbar(dn-.1, results['mean'][0], sqrt(results['sigmasquared'][0]), color=paper.maze_colors[ds])
+    ax.errorbar(dn+.1, results['mean'][1], sqrt(results['sigmasquared'][1]), color=desaturate_color(paper.maze_colors[ds]))
+    ax.plot([dn-.1, dn+.1], [results['mean'][0], results['mean'][1]], lw=4, ls="--", color=paper.maze_colors[ds], zorder=0)
+
+
+_ = ax.set(title="p(R) vs arm of origin", ylabel="p(R|origin)", xlabel="maze|arm of origin",
+                xticks=[-.1, .1, .9, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9, 4.1], 
+                xticklabels=['m1-L', 'R', 'm2-L', 'R', 'm3-L', 'R', 'm4-L', 'R', 'm6-L', 'R'],
+                )
+clean_axes(f)
 
 
 
@@ -99,20 +131,13 @@ for n, (ds, trs) in enumerate(trials.datasets.items()):
 
 
 
+# %%
 
+# %%
 
+# %%
 
-
-
-
-
-
-
-
-
-
-
-
+# %%
 
 # %%
 # ---------------------------------------------------------------------------- #
@@ -186,7 +211,7 @@ for n, (ds, data) in enumerate(res.items()):
                     lw = 3, ls="--", color=paper.maze_colors[ds])
 
 ax.set(title="Arm occupancy in exploration", ylabel="Occupancy", xlabel="maze",
-                xticks=[-.1, .1, .99, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9, 4.1], 
+                xticks=[-.1, .1, .9, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9, 4.1], 
                 xticklabels=['m1-L', 'R', 'm2-L', 'R', 'm3-L', 'R', 'm4-L', 'R', 'm6-L', 'R'],
                 )
 
