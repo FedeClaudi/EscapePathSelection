@@ -64,6 +64,9 @@ t = trials.datasets['maze1'].loc[trials.datasets['maze1'].stimulus_uid.isin(good
 trials.datasets['maze1'] = t
 
 
+# ------------------------------- Get maxes sts ------------------------------ #
+_mazes = get_mazes()
+
 
 # %%
 # ---------------------------------------------------------------------------- #
@@ -103,7 +106,30 @@ clean_axes(f)
 
 # %%
 # ----------------- Look at ammount of time spend on each arm ---------------- #
+res = {ds:{'left':[], 'right':[]} for ds in dataset_explorations.keys()}
+for n, (ds, data) in enumerate(dataset_explorations.items()):
+    for i, row in data.iterrows():
+        trk = row.body_tracking
+        res[ds]['left'].append(len(trk[trk[:, 0] < 450])/trk.shape[0])
+        res[ds]['right'].append(len(trk[trk[:, 0] > 550])/trk.shape[0])
+res = {ds: pd.DataFrame(d) for ds, d in res.items()}
 
 
+# Plot avg occupancy normalised for exploration of each mouse
+f, ax = plt.subplots(ncols = 1)
+for n, (ds, data) in enumerate(res.items()):
+    ball_and_errorbar(n -.1, data.left.mean(), data.left.values, 
+                    ax, orientation='vertical',
+                    s=250, color=paper.maze_colors[ds])
+    ball_and_errorbar(n + .1, data.right.mean(), data.right.values, 
+                    ax, orientation='vertical',
+                    s=250, color=desaturate_color(paper.maze_colors[ds]))
 
+    ax.plot([n -.1, n+.1], [data.left.mean(), data.right.mean()], 
+                    lw = 3, ls="--", color=paper.maze_colors[ds])
 
+ax.set(title="Arm occupancy in exploration", ylabel="Occupancy", xlabel="maze",
+                xticks=[-.1, .1, .99, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9, 4.1], 
+                xticklabels=['m1-L', 'R', 'm2-L', 'R', 'm3-L', 'R', 'm4-L', 'R', 'm6-L', 'R'],
+                )
+clean_axes(f)

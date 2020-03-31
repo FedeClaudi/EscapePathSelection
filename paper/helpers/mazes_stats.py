@@ -7,7 +7,10 @@ from fcutils.file_io.io import load_yaml
 from fcutils.maths.geometry import calc_distance_from_point
 
 def get_mazes():
-    maze_metadata_file = '/Users/federicoclaudi/Documents/Github/EscapePathSelection/paper/dbase/Mazes_metadata.yml'
+    if sys.platform == 'darwin':
+        maze_metadata_file = '/Users/federicoclaudi/Documents/Github/EscapePathSelection/paper/dbase/Mazes_metadata.yml'
+    else:
+        maze_metadata_file = "C:\\Users\\Federico\\Documents\\GitHub\\EscapePathSelection\\paper\\dbase\\Mazes_metadata.yml"
     mazes = load_yaml(maze_metadata_file)
 
     for maze, metadata in mazes.items():
