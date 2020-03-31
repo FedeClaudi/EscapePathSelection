@@ -106,13 +106,24 @@ clean_axes(f)
 
 # %%
 # ----------------- Look at ammount of time spend on each arm ---------------- #
+NORM_BY_MAZE_ASYM = True
+
+
 res = {ds:{'left':[], 'right':[]} for ds in dataset_explorations.keys()}
 for n, (ds, data) in enumerate(dataset_explorations.items()):
     for i, row in data.iterrows():
         trk = row.body_tracking
-        res[ds]['left'].append(len(trk[trk[:, 0] < 450])/trk.shape[0])
-        res[ds]['right'].append(len(trk[trk[:, 0] > 550])/trk.shape[0])
+
+        l = len(trk[trk[:, 0] < 450])/trk.shape[0]
+        r = len(trk[trk[:, 0] > 550])/trk.shape[0]
+
+        if NORM_BY_MAZE_ASYM:
+            l = l / _mazes[ds]['left_path_length'] * _mazes[ds]['right_path_length']
+
+        res[ds]['left'].append(l)
+        res[ds]['right'].append(r)
 res = {ds: pd.DataFrame(d) for ds, d in res.items()}
+
 
 
 # Plot avg occupancy normalised for exploration of each mouse
@@ -132,4 +143,11 @@ ax.set(title="Arm occupancy in exploration", ylabel="Occupancy", xlabel="maze",
                 xticks=[-.1, .1, .99, 1.1, 1.9, 2.1, 2.9, 3.1, 3.9, 4.1], 
                 xticklabels=['m1-L', 'R', 'm2-L', 'R', 'm3-L', 'R', 'm4-L', 'R', 'm6-L', 'R'],
                 )
+
+if NORM_BY_MAZE_ASYM:
+    ax.set(ylabel="Length normalised occupancy")
+
 clean_axes(f)
+
+
+# %%
