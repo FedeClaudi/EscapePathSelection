@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from math import sqrt
+import seaborn as sns
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, ball_and_errorbar
@@ -64,8 +65,53 @@ t = trials.datasets['maze1'].loc[trials.datasets['maze1'].stimulus_uid.isin(good
 trials.datasets['maze1'] = t
 
 
-# ------------------------------- Get maxes sts ------------------------------ #
+# ------------------------------- Get mazes stats ------------------------------ #
 _mazes = get_mazes()
+
+
+
+
+
+
+
+# %%
+# ---------------------------------------------------------------------------- #
+#                           EFFECT OF ORIGIN ANALYSIS                          #
+# ---------------------------------------------------------------------------- #
+
+for n, (ds, trs) in enumerate(trials.datasets.items()):
+    l_origin = trs.loc[trs.origin_arm == 'left']
+    r_origin = trs.loc[trs.origin_arm == 'right']
+
+    dsets = dict(left=l_origin, right=r_origin)
+    hits, ntrials, p_r, n_mice, trials = trials.get_binary_trials_per_dataset(dsets)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # %%
@@ -151,3 +197,22 @@ clean_axes(f)
 
 
 # %%
+# -------------------------- Heatmap of explorations ------------------------- #
+res = {ds:None for ds in dataset_explorations.keys()}
+for n, (ds, data) in enumerate(dataset_explorations.items()):
+    ds_trk = []
+    for i, row in data.iterrows():
+        ds_trk.append(row.body_tracking)
+    res[ds] = np.vstack(ds_trk)
+
+# for ds, data in res.items():
+#     data[(data[:, 0] > 450) & (data[:, 0] < 550)] = np.nan
+
+f, axarr = create_figure(subplots=True, ncols=3, nrows=2, figsize=(15, 10))
+
+for ax, (ds, data) in zip(axarr, res.items()):
+
+    ax.hexbin(data[:, 0], data[:, 1], mincnt=30, gridsize=100, bins='log')
+
+
+
