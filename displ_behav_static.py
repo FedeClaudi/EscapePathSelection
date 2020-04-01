@@ -73,14 +73,14 @@ _mazes = get_mazes()
 #                                 PLOT TRACKING                                #
 # ---------------------------------------------------------------------------- #
 # -------------------------------- All trials -------------------------------- #
-f, axarr = create_figure(subplots=True, ncols=3, nrows=2, figsize=(15, 10))
+f, axarr = create_figure(subplots=True, ncols=5, figsize=(25, 5), sharex=True, sharey=True)
 
 good_trials = {ds:dict(left=None, right=None) for ds in trials.datasets.keys()}
 
 for ax, (ds, data) in zip(axarr, trials.datasets.items()):
     # Plot all trials
     for i, trial in data.iterrows():
-        ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=.5, color=[.8, .8, .8], alpha=.7)
+        ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=.5, color=[.6, .6, .6], alpha=.7)
 
     # Select two random left vs right trials and plot
     for side, col in zip(['left', 'right'], [paper.maze_colors[ds], desaturate_color(paper.maze_colors[ds])]):
@@ -89,13 +89,14 @@ for ax, (ds, data) in zip(axarr, trials.datasets.items()):
             tr = data.loc[(data.escape_arm == side)].sample(1).iloc[0]
             if tr.body_xy[0, 1] <= 200: good = True
             good_trials[ds][side] = tr
+        ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], lw=5.5, color=[1, 1, 1], alpha=1)
         ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], lw=4.5, color=col, alpha=1)
 
     ax.set(xticks=[], yticks=[], title=ds)
 
-axarr[-1].axis("off")
 
 clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'tracking_traces'), svg=True)
 
 
 
@@ -171,22 +172,6 @@ clean_axes(f)
 
 
 
-# %%
-
-# %%
-# %%
-f, axarr = create_figure(ncols=10, nrows=8, figsize=(30, 20))
-
-for ax, (i, tr) in zip(axarr, trials.datasets['maze6'].iterrows()):
-    if tr.escape_arm == 'left':
-        color = salmon
-    else:
-        print(np.min(tr.body_xy[:, 0]))
-        color = green
-
-    ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], color=color)
-
-    ax.set(xlim=[200, 800], ylim=[100, 900], yticks=[])
 
 
 
