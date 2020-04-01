@@ -1,7 +1,7 @@
 # %%
 # Imports
 import sys
-sys.path.append('/Users/federicoclaudi/Documents/Github/EscapePathSelection')
+sys.path.append('./')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -71,95 +71,4 @@ mazes_stats = pd.DataFrame(dict(
 mazes_stats
 
 
-
-
-
-
-# %%
-# ---------------------------------------------------------------------------- #
-#                                 Psychometric                                 #
-# ---------------------------------------------------------------------------- #
-
-# ? Options
-PLOT_INDIVIDUALS = True
-ADD_M6 = True
-
-# ------------------------------- Prepare Data ------------------------------- #
-if not ADD_M6:
-    mazes = {k:m for k,m in _mazes.items() if k in paper.psychometric_mazes}
-
-    X_labels = list(trials.datasets.keys())[:-1]
-    X = [maze['ratio'] for maze in mazes.values()]
-    Y = grouped_pRs['mean'].values[:-1]
-
-    Y_err = [sqrt(v)*2 for v in grouped_pRs['sigmasquared']][:-1]
-    colors = [paper.maze_colors[m] for m in X_labels]
-
-    xfit = X
-    yfit = Y
-    yerror = Y_err
-
-    hierarchical = hierarchical_pRs.loc[hierarchical_pRs.dataset != 'Maze6']
-
-else:
-    mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
-    X_labels = list(trials.datasets.keys())
-    X = np.array([maze['ratio'] for maze in mazes.values()])
-    Y = grouped_pRs['mean'].values
-    Y_err = [sqrt(v)*2 for v in grouped_pRs['sigmasquared']]
-    colors = [paper.maze_colors[m] for m in X_labels]
-
-    xfit = X[:-1]
-    yfit = Y[:-1]
-    yerrfit = Y_err[:-1]
-
-    hierarchical = hierarchical_pRs
-
-
-# Colors
-xmin, xmax = -1, 3
-
-# Create figure
-f, ax = create_figure(subplots=False, figsize=(16, 10))
-
-
-# ---------------------------- Plot means scatter ---------------------------- #
-ax.scatter(X, Y, c=colors, s=250, ec='k', zorder=99)
-
-for x,y,yerr,color in zip(X, Y, Y_err, colors):
-    _ = ax.errorbar(x, y, yerr=yerr, fmt = 'o', c=color, lw=4)
-    _ = hline_to_point(ax, x, y, color=color, ls="--", alpha=.3, lw=3, xmin=xmin-3)
-    _ = vline_to_point(ax, x, y, color=color, ls="--", alpha=.3, lw=3, ymin=-1)
-
-
-# ------------------------ Plot indidividuals scatter ------------------------ #
-if PLOT_INDIVIDUALS:
-    for x, dset, color in zip(X, X_labels, colors):
-        ys = hierarchical.loc[hierarchical.dataset == dset]['means'].values[0]
-        xs = np.random.normal(x, .01, size=len(ys))
-        color = desaturate_color(color)
-
-        ax.scatter(xs, ys, color=color, s=50, ec=[.2, .2, .2], alpha=.5, zorder=98)
-
-# ------------------------------ Fit/Plot curve ------------------------------ #
-
-curve_params = plot_fitted_curve(centered_logistic, xfit, yfit, 
-                ax, xrange=[xmin, xmax], 
-                scatter_kwargs=dict(alpha=0),
-                fit_kwargs = dict(sigma=yerrfit),
-                line_kwargs=dict(color=[.3, .3, .3], alpha=.7, lw=3))
-
-
-_ = ax.set(title="p(R) psychometric",
-        xlim = [xmin, xmax],
-        ylim = [0, 1],
-        xticks = X,
-        xticklabels = X_labels,
-        xlabel='Path length asymmetry',
-        ylabel='p(R)'
-        )
-clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, f'psychometric_M6_{ADD_M6}_individuals_{PLOT_INDIVIDUALS}'), svg=True)
-
-
-
+# TODO plot psychometric with better X axis ?? 

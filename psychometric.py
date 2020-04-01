@@ -74,7 +74,7 @@ _mazes = get_mazes()
 # ---------------------------------------------------------------------------- #
 
 # ? Options
-PLOT_INDIVIDUALS = True
+PLOT_INDIVIDUALS = False
 ADD_M6 = True
 
 # ------------------------------- Prepare Data ------------------------------- #

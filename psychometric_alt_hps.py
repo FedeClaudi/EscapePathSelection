@@ -49,12 +49,8 @@ trials.load_psychometric()
 trials.remove_change_of_mind_trials() # remove silly trials
 
 
-
 # ------------------------------- Get mazes stats ------------------------------ #
 _mazes = get_mazes()
-
-
-
 
 
 
