@@ -144,6 +144,25 @@ class TrialsLoader(Bayes):
                     for ds, trs in self.datasets.items()}
         return self.datasets_sessions
 
+    def remove_change_of_mind_trials(self):
+        """On some trials mice go on one arm first, then change their mind and take the other,
+        this function removes this kind of trials"""
+        datasets = self.datasets.copy()
+        for ds, trials in datasets.items():
+            goodids = []
+            for i, trial in trials.iterrows():
+                if trial.escape_arm == "left":
+                    if np.max(trial.body_xy[:, 0]) > 550: # moue went left and right
+                        continue
+                elif trial.escape_arm == "right":
+                    if np.min(trial.body_xy[:, 0]) < 450: # mouse went right and left
+                        continue
+                goodids.append(trial.stimulus_uid)
+            
+            good_trials = self.datasets[ds].loc[self.datasets[ds].stimulus_uid.isin(goodids)]
+            self.datasets[ds] = good_trials
+
+
 
     # ---------------------------------------------------------------------------- #
     #                                   ANALYSIS                                   #

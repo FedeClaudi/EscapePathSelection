@@ -46,23 +46,8 @@ params = dict(
 
 trials = TrialsLoader(**params)
 trials.load_psychometric()
+trials.remove_change_of_mind_trials() # remove silly trials
 
-
-# ---------------------------------- cleanup --------------------------------- #
-"""
-    In some trials on M1 mice go left first and then right, discard these trials.
-"""
-goodids, skipped = [], 0
-_trials = trials.datasets['maze1']
-for i, trial in _trials.iterrows():
-    if trial.escape_arm == "left":
-        if np.max(trial.body_xy[:, 0]) > 600:
-            skipped += 1
-            continue
-    goodids.append(trial.stimulus_uid)
-
-t = trials.datasets['maze1'].loc[trials.datasets['maze1'].stimulus_uid.isin(goodids)]
-trials.datasets['maze1'] = t
 
 
 # ------------------------------- Get mazes stats ------------------------------ #

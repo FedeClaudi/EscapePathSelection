@@ -41,24 +41,7 @@ params = dict(
 
 trials = TrialsLoader(**params)
 trials.load_psychometric()
-
-
-# ---------------------------------- cleanup --------------------------------- #
-"""
-    In some trials on M1 mice go left first and then right, discard these trials.
-"""
-goodids, skipped = [], 0
-_trials = trials.datasets['maze1']
-for i, trial in _trials.iterrows():
-    if trial.escape_arm == "left":
-        if np.max(trial.body_xy[:, 0]) > 600:
-            skipped += 1
-            continue
-    goodids.append(trial.stimulus_uid)
-
-t = trials.datasets['maze1'].loc[trials.datasets['maze1'].stimulus_uid.isin(goodids)]
-trials.datasets['maze1'] = t
-
+trials.remove_change_of_mind_trials() # remove silly trials
 
 # --------------------------- P(R) and other stuff --------------------------- #
 print("Grouped bayes")
@@ -129,19 +112,6 @@ width_factor = .2
 f, axarr = create_figure(subplots=True, ncols=3, nrows=2, figsize=(15, 10))
 
 
-# def draw_mouse(x_snout, y_snout, x_neck, y_neck, x_tail, y_tail, head_angle, body_angle, alpha):
-#     # draw the head
-#     head_center = (np.mean([x_snout, x_neck]), np.mean([y_snout, y_neck]))
-#     head = Ellipse(head_center, head_width, head_width * width_factor, angle=head_angle,
-#                     edgecolor='k', facecolor=[.2, .2, .2], linewidth=1, antialiased=True, alpha=alpha)
-
-#     # Draw body
-#     body_center = (np.mean([x_neck, x_tail]), np.mean([y_neck, y_tail]))
-#     body = Ellipse(body_center, body_width, body_width * width_factor, angle=body_angle,
-#                     edgecolor='k', facecolor=[.2, .2, .2], linewidth=1, antialiased=True, alpha=alpha)
-#     return head, body
-
-
 for ax, (maze, trs) in zip(axarr, good_trials.items()):
     for side, tr in trs.items():
         if side == 'right':
@@ -174,7 +144,7 @@ for ax, (maze, trs) in zip(axarr, good_trials.items()):
                     lw = 3
                 else:
                     alpha=1
-                    lw=6
+                    lw=4
 
                 # Plot a first time larger in white to get a better look
                 # ax.plot(
@@ -204,5 +174,20 @@ clean_axes(f)
 # %%
 
 # %%
+# %%
+f, axarr = create_figure(ncols=10, nrows=8, figsize=(30, 20))
+
+for ax, (i, tr) in zip(axarr, trials.datasets['maze6'].iterrows()):
+    if tr.escape_arm == 'left':
+        color = salmon
+    else:
+        print(np.min(tr.body_xy[:, 0]))
+        color = green
+
+    ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], color=color)
+
+    ax.set(xlim=[200, 800], ylim=[100, 900], yticks=[])
+
+
 
 # %%
