@@ -364,6 +364,11 @@ class Explorations(dj.Imported):
 	"""
 
 	def make(self, key):
+		if key['uid'] < 184: 
+			fps = 30
+		else: 
+			fps=40
+
 		# Get session's recording
 		recs = (Recording & key).fetch("recording_uid")
 		if not np.any(recs): return
@@ -394,24 +399,20 @@ class Explorations(dj.Imported):
 		# Get concatenated frame number of first stim
 		first_stim = first_stim[0]-1
 		if rec_n:
-			first_stim += cum_n_frames[rec_n-1]
+			first_stim += cum_n_frames[rec_n-1] -1
 
 		# Get tracking up to first stim
 		tracking = np.vstack(trackings)
 		like = (TrackingData * TrackingData.BodyPartData & key & f"recording_uid='{recs[0]}'" & "bpname='body'").fetch("likelihood")[0]
-		start = np.where(like > 0.9999)[0][0]
+		start = np.where(like > 0.9999)[0][0] # The first frame is when DLC finds the mouse
+		start += 15 * fps # adding 15 seconds to allow for the mouse to be placed on the maze
 
 		if start>first_stim or first_stim>tracking.shape[0]: raise ValueError
 
 		tracking = tracking[start:first_stim, :]
 
 
-		# Put evreything together and isert
-		if key['uid'] < 184: 
-			fps = 30
-		else: 
-			fps=40
-
+		# Put evreything together and insert
 		duration = tracking.shape[0]/fps
 		d_covered = np.nansum(tracking[:, 2])
 		maze_roi = tracking[:, -1]

@@ -17,8 +17,6 @@ from matplotlib.patches import Ellipse
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
-from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
-from fcutils.maths.distributions import centered_logistic, get_distribution
 from fcutils.plotting.colors import desaturate_color
 from fcutils.plotting.colors import *
 from fcutils.maths.geometry import calc_angle_between_vectors_of_points_2d as calc_angle
