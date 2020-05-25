@@ -18,6 +18,8 @@ from fcutils.plotting.utils import clean_axes, save_figure
 from fcutils.plotting.plot_distributions import plot_kde
 from fcutils.plotting.colors import *
 
+from behaviour.utilities.signals import get_times_signal_high_and_low
+
 
 # %%
 def get_maze_explorations(maze_design, naive=None, lights=1):
@@ -59,6 +61,9 @@ def get_session_time_on_arms(exploration, normalize = False, maze=None):
 
 
 # %%
+"""
+    Plot the time spent on each path for each exploration
+"""
 mazes = [1, 2, 3, 4, 6]
 NORMALIZE = True
 
@@ -93,4 +98,88 @@ clean_axes(f)
 save_figure(f, os.path.join(plots_dir, f"exploration_arm_occupancy{'_norm' if NORMALIZE else ''}"))
 
 # %%
+
+"""
+    Plot the fraction fo IN/OUT trips between the left and right path for each maze
+"""
+
+f, ax = plt.subplots()
+
+only = 'in'
+
+for n, maze in enumerate(mazes):
+    Y = [0]
+    explorations = get_maze_explorations(maze,  naive=None, lights=1)
+    for i, e in explorations.iterrows():
+
+        # Get left and right outwards and inwards trips
+        tracking = e.body_tracking
+
+        left = np.zeros_like(tracking[:, 0])
+        left[tracking[:, 0] < 450] = 1
+        l_starts, l_ends = get_times_signal_high_and_low(left, th=.5)
+
+        right = np.zeros_like(tracking[:, 0])
+        right[tracking[:, 0] > 550] = 1
+        r_starts, r_ends = get_times_signal_high_and_low(right, th=.5)
+
+        n_trips = dict(
+            left = dict(outward = 0, inward = 0),
+            right = dict(outward = 0, inward = 0),
+
+        )
+        
+        for start, end in zip(l_starts, l_ends):
+            if end - start < 100: continue
+            if tracking[start, 1]  > 500:
+                n_trips['left']['outward'] += 1
+            else:
+                n_trips['left']['inward'] += 1
+
+        
+        for start, end in zip(r_starts, r_ends):
+            if end - start < 100: continue
+            if tracking[start, 1]  > 500:
+                n_trips['right']['outward'] += 1
+            else:
+                n_trips['right']['inward'] += 1
+
+        # Summarise
+        if only is None: # consider all trips
+            L, R = n_trips['left']['outward']+n_trips['left']['inward'], n_trips['right']['outward']+n_trips['right']['inward']
+        elif only == 'out':
+            L, R = n_trips['left']['outward'], n_trips['right']['outward']
+        elif only == 'in':
+            L, R = n_trips['left']['inward'], n_trips['right']['inward']
+        else:
+            raise ValueError
+
+        if not L and not R:
+            continue
+        elif not L:
+            y = 1
+        elif not R:
+            y = 0
+        else:
+            y = R/(L+R)
+        
+        # Plot scatter
+        ax.scatter(np.random.normal(n, 0.001), y, s=40, color=[.4, .4, .4], alpha=.5)
+        Y.append(y)
+
+    # Plot KDE and mean
+    plot_kde(data=Y, vertical=True,  z=n, normto=.3, ax=ax, color=maze_colors[f'maze{maze}'], alpha=.1, kde_kwargs=dict(bw=.02))
+    ax.scatter(n, np.mean(Y), s=160, color='red', zorder=99)
+
+
+ax.axhline(0.5, lw=2, ls='--', color='k')
+
+ax.set(ylim=[-.1, 1.1], title=f'Fraction of {only} trips per maze [exploration]')
+
+clean_axes(f)
+
+
+
+save_figure(f, os.path.join(plots_dir, f"exploration_trips_fraction{only}"))
+
 # %%
