@@ -17,6 +17,7 @@ from paper.helpers.mazes_stats import get_mazes
 from fcutils.plotting.utils import clean_axes, save_figure
 from fcutils.plotting.plot_distributions import plot_kde
 from fcutils.plotting.colors import *
+from fcutils.file_io.utils import check_create_folder
 
 from behaviour.utilities.signals import get_times_signal_high_and_low
 
@@ -181,5 +182,93 @@ clean_axes(f)
 
 
 save_figure(f, os.path.join(plots_dir, f"exploration_trips_fraction{only}"))
+
+# %%
+from mpl_toolkits.mplot3d import Axes3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+
+# %%
+individual = False
+
+outfld = os.path.join(plots_dir, 'exploration')
+check_create_folder(outfld)
+
+for n, maze in enumerate(mazes):
+    Y = [0]
+    explorations = get_maze_explorations(maze,  naive=None, lights=1)
+    N = len(explorations)
+
+    maze_fld = os.path.join(outfld, f'maze {maze}')
+    check_create_folder(maze_fld)
+
+    if not individual:
+        fig = plt.figure(figsize=(24*2, 14*2))
+    for i,e in explorations.iterrows():
+        if not individual:
+            ax = fig.add_subplot(5 , 9, i+1, projection='3d')
+        else:
+            fig = plt.figure(figsize=(12, 12))
+            ax = fig.add_subplot(111, projection='3d')
+
+        # Get tracking with only time on arms
+        tracking = e.body_tracking
+        in_shelt = np.where(e.maze_roi == 0)[0]
+        in_threat = np.where(e.maze_roi == 1)[0]
+
+        trk = tracking.copy()
+        # trk[in_shelt] = np.nan
+        # trk[in_threat] = np.nan
+
+        time = np.arange(len(trk))
+        ones = np.ones(len(trk))*-40
+
+        # Get in and out of shelt times
+        in_shelt = np.zeros(len(time))
+        in_shelt[e.maze_roi == 0] = 1
+        in_shelt[:3000] = 0
+        in_outs = get_times_signal_high_and_low(in_shelt, th=.5)
+        if len(in_outs[0]):
+            first_shelt = in_outs[0][0]
+        else:
+            first_shelt = len(tracking)-1
+
+        # Plot tracking
+        ax.plot(trk[:first_shelt, 0], trk[:first_shelt, 1], time[:first_shelt], lw=3, color='k')
+        ax.plot(trk[first_shelt:, 0], trk[first_shelt:, 1], time[first_shelt:], lw=3, color='g')
+        ax.scatter(trk[first_shelt, 0], trk[first_shelt, 1], time[first_shelt], lw=3, color='k', s=200)
+
+
+        # Plot shelter enter exits
+        # ax.scatter(tracking[in_outs[0], 0], tracking[in_outs[0], 1], time[in_outs[0]], s=50, color='green')
+        # ax.scatter(tracking[in_outs[1], 0], tracking[in_outs[1], 1], time[in_outs[1]], s=50, color='blue')
+
+        # Plt projections
+        ax.plot(tracking[:, 0], tracking[:, 1], ones, color=[.7, .7, .7], zorder=-1)
+        ax.plot(ones, tracking[:, 1], time, color=[.85, .85, .85], zorder=-1)
+        ax.plot(tracking[:, 0], ones*-20, time, color=[.85, .85, .85], zorder=-1)
+
+        # ax.set_axis_off()
+        ax.view_init(elev=15, azim=-80)
+
+        if not individual:
+            _ = ax.set(title=e.mouse_id, zticks=[], xticks=[], 
+                            yticks=[], xlim=[-20, 1000])
+        else:
+            _ = ax.set(title=e.mouse_id, zticks=[], xticks=[], 
+                        xlabel='X', ylabel='Y', zlabel='TIME',
+                            yticks=[], xlim=[-20, 1000])
+            
+            save_figure(fig, os.path.join(maze_fld, f"mouse - {e.mouse_id}"))
+
+    if not individual:
+        save_figure(fig, os.path.join(outfld, f"explorations maze {maze}"))
+
+
+    # break
+
+# %%
+
 
 # %%
