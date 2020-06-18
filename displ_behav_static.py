@@ -14,6 +14,7 @@ import pandas as pd
 import os
 from math import sqrt
 from matplotlib.patches import Ellipse
+from scipy.signal import resample
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
@@ -71,25 +72,46 @@ _mazes = get_mazes()
 #                                 PLOT TRACKING                                #
 # ---------------------------------------------------------------------------- #
 # -------------------------------- All trials -------------------------------- #
-f, axarr = create_figure(subplots=True, ncols=5, figsize=(25, 5), sharex=True, sharey=True)
+f, axarr = create_figure(subplots=True, ncols=5, figsize=(22, 7), sharex=True, sharey=True)
 
 good_trials = {ds:dict(left=None, right=None) for ds in trials.datasets.keys()}
 
 for ax, (ds, data) in zip(axarr, trials.datasets.items()):
+    # data = data.loc[data.escape_arm != 'center']
+
+    # Store left and right tracking for left and right trials
+    lxs, lys = [], []
+    rxs, rys = [], []
+
+
     # Plot all trials
     for i, trial in data.iterrows():
         ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=.5, color=[.6, .6, .6], alpha=.7)
 
-    # Select two random left vs right trials and plot
-    for side, col in zip(['left', 'right'], [paper.maze_colors[ds], desaturate_color(paper.maze_colors[ds])]):
-        good = False
-        while not good:
-            tr = data.loc[(data.escape_arm == side)].sample(1).iloc[0]
-            if tr.body_xy[0, 1] <= 200: good = True
-            good_trials[ds][side] = tr
-        ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], lw=5.5, color=[1, 1, 1], alpha=1)
-        ax.plot(tr.body_xy[:, 0], tr.body_xy[:, 1], lw=4.5, color=col, alpha=1)
+        if trial.escape_arm == 'left':
+            lxs.append(trial.body_xy[:, 0])
+            lys.append(trial.body_xy[:, 1])
+        else:
+            rxs.append(trial.body_xy[:, 0])
+            rys.append(trial.body_xy[:, 1])
 
+    # Plot the average left and right trial
+    # First resample
+
+
+    mean_dur = np.nanmean([np.nanmean([len(i) for i in l]) for l in [lxs, lys, rxs, rys]]).astype(np.int32)
+    lxs = np.nanmedian(np.vstack([resample(pd.Series(X).interpolate(), mean_dur) for X in lxs]), 0)
+    lys = np.nanmedian(np.vstack([resample(pd.Series(X).interpolate(), mean_dur) for X in lys]), 0)
+    rxs = np.nanmedian(np.vstack([resample(pd.Series(X).interpolate(), mean_dur) for X in rxs]), 0)
+    rys = np.nanmedian(np.vstack([resample(pd.Series(X).interpolate(), mean_dur) for X in rys]), 0)
+
+    col = paper.maze_colors[ds]
+
+    for x, y, c in zip([lxs, rxs], [lys, rys], [col, desaturate_color(col)]):    
+        ax.plot(x[5:-5], y[5:-5], lw=7, color=[1, 1, 1], alpha=1)
+        ax.plot(x[5:-5], y[5:-5], lw=6, color=col, alpha=1)
+
+    ax.axis('off')
     ax.set(xticks=[], yticks=[], title=ds)
 
 
