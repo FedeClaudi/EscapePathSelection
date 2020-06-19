@@ -212,3 +212,47 @@ summary
 
 
 # %%
+"""
+    Check if number of L/R distributions is different across mazes
+
+"""
+# add a 1 for each right trial and a 0 for each left trial
+binaries = {maze:[] for maze in trials.datasets.keys()}
+
+for maze, data in trials.datasets.items():
+    for i, trial in data.iterrows():
+        if trial.escape_arm == 'left': binaries[maze].append(0)
+        else: binaries[maze].append(1)
+
+# %%
+# Multitest chi square with bonferroni
+from statsmodels.stats.proportion import proportions_chisquare_allpairs
+
+count = np.array([np.sum(b) for b in binaries.values()])
+nobs = np.array([len(b) for b in binaries.values()])
+mnames = list(trials.datasets.keys())
+colors = [paper.maze_colors[m] for m in mnames]
+
+res = proportions_chisquare_allpairs(count, nobs)
+
+
+f, ax = plt.subplots(figsize=(12, 12))
+ax.bar(np.arange(len(mnames)), count/nobs, color=colors)
+
+for (m1, m2), pval in zip(res.all_pairs, res.pval_corrected()):
+    print(f'{mnames[m1]} vs {mnames[m2]} - {round(pval, 3)}')
+
+    if pval < 0.05:
+        y = .4 + 0.05*m1 + 0.25*m2
+        ax.errorbar([m1, m2], [y, y], yerr=.02, lw=2, color=colors[m2])
+
+        # ax.text(m1 + (m2-m1)/2, y, '*', fontsize=25, fontweight=900, color='white')
+        # ax.text(m1 + (m2-m1)/2, y, '*', fontsize=25, fontweight=500, color='k')
+
+ax.axhline(0.5, lw=2, color=[.6, .6, .6], ls='--', zorder=-1)
+
+_ = ax.set(title='raw p(R) per maze', ylabel='p(R)', yticks=np.arange(0, 1.25, .25), xticks=np.arange(len(mnames)), 
+            xticklabels=mnames)
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'raw_pR_test'), svg=True)

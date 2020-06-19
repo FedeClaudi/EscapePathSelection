@@ -16,10 +16,12 @@ from paper.paths import plots_dir
 from paper import maze_colors
 from paper.helpers.mazes_stats import get_mazes
 from paper.utils.explorations import get_maze_explorations
+from paper.utils.misc import run_multi_t_test_bonferroni
 
 from fcutils.plotting.utils import clean_axes, save_figure
 from fcutils.plotting.plot_distributions import plot_kde
 from fcutils.plotting.colors import *
+from fcutils.plotting.colors import desaturate_color
 from fcutils.file_io.utils import check_create_folder
 
 from behaviour.utilities.signals import get_times_signal_high_and_low
@@ -273,6 +275,8 @@ for n, maze in enumerate(mazes):
 # %%
 """
     Look at the avg duration of T-S and S-T trips per maze during explorations
+
+    GET TRIPS
 """
 
 PLOT_TRACKING = False # se to True to check that shelter and threat in/outs are correctly detected
@@ -378,7 +382,13 @@ for n, maze in enumerate(mazes):
                                          np.mean(tracking[start:end, 0])>=500])
 # %%
 
+"""
+    Plot number of trips and avg trip duration per class of
+    trips and arm
+"""
+
 f, axarr = plt.subplots(figsize=(16, 12), nrows=2, sharex=True )
+
 
 for n, (maze, trps) in enumerate(trips.items()):
     st_l = np.mean(trps['st']['l'])
@@ -414,6 +424,20 @@ for n, (maze, trps) in enumerate(trips.items()):
         axarr[1].legend()
 
 
+# Reorganize data for ttest
+sttrips = {maze:trips[maze]['st'] for maze in trips.keys()}
+tstrips = {maze:trips[maze]['ts'] for maze in trips.keys()}
+
+# Add results of ttest
+for n, sig in enumerate(run_multi_t_test_bonferroni(sttrips)[0]):
+    if sig:
+        axarr[0].text(n+.2, 40, 'S->T', fontsize=15, fontweight=500, horizontalalignment='center')
+for n, sig in enumerate(run_multi_t_test_bonferroni(tstrips)[0]):
+    if sig:
+        axarr[0].text(n+.2, 36, 'T->S', fontsize=15, fontweight=500, horizontalalignment='center')
+
+
+# Clean axes
 _ =axarr[0].set(title='Average trip duration', ylabel='duration per arm (s)',  xticklabels=[f'maze{m}' for m in mazes], xticks=np.arange(5))
 _ =axarr[1].set(title='Number of trips per arm', ylabel='# trips per arm',  xticklabels=[f'maze{m}' for m in mazes], xticks=np.arange(5))
 

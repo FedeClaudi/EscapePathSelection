@@ -11,8 +11,7 @@ from math import sqrt
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
-from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
-from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
+from fcutils.plotting.plot_elements import plot_mean_and_error
 from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
 from fcutils.maths.distributions import get_distribution
@@ -22,7 +21,7 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.helpers.mazes_stats import get_mazes, get_euclidean_dist_for_dataset
-
+from paper.utils.misc import resample_list_of_arrayes_to_avg_len
 
 
 # %%
@@ -60,7 +59,7 @@ except Exception as e:
 print("Mazes stats")
 _mazes = get_mazes()
 
-euclidean_dists = get_euclidean_dist_for_dataset(trials.datasets, trials.shelter_location)
+euclidean_dists, mean_eucl_dist, eucl_dist_traces = get_euclidean_dist_for_dataset(trials.datasets, trials.shelter_location)
 mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
 
 mazes_stats = pd.DataFrame(dict(
@@ -71,4 +70,69 @@ mazes_stats = pd.DataFrame(dict(
 mazes_stats
 
 
+for maze, data in mean_eucl_dist.items():
+    meanl = np.mean(data['left'])
+    meanr = np.mean(data['right'])
+
+    print(f'{maze} - mean eucl dist - {meanl} / {meanr}')
+
 # TODO plot psychometric with better X axis ?? 
+
+# %%
+"""
+    Plot an histogram with mean euclidean distance from shelter for left and right escape per arm
+"""
+
+f, axarr = plt.subplots(ncols=5, figsize=(24, 7), sharey=True)
+f.suptitle('Histogram of mean eucl.dist. to shelt. per arm')
+
+for ax, (maze, means) in zip(axarr, mean_eucl_dist.items()):
+    color = paper.maze_colors[maze]    
+    ax.hist(means['left'], bins=15, color=color, density=True, alpha=.4, label='left')
+    ax.hist(means['right'], bins=15, color=desaturate_color(color), density=True, alpha=.4, label='right')
+
+    ax.hist(means['left'], bins=15, histtype='step', color=color, density=True, alpha=1)
+    ax.hist(means['right'], bins=15, histtype='step', color=desaturate_color(color), density=True, alpha=1)
+
+    ax.legend()
+
+    ax.set(title=maze, xlabel='mean eucl dist')
+
+axarr[0].set( ylabel='density')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'mean eucl dist hist'))
+
+
+# %%
+"""
+    Plot the average euclidean distance as a function of progression  during the escape
+
+"""
+
+
+f, axarr = plt.subplots(ncols=5, figsize=(24, 7), sharey=True)
+f.suptitle('Avg eucl shelter dist during escape')
+
+for ax, (maze, means) in zip(axarr, mean_eucl_dist.items()):
+    color = paper.maze_colors[maze]    
+
+    left = resample_list_of_arrayes_to_avg_len(eucl_dist_traces[maze]['left'], N=100)
+    right = resample_list_of_arrayes_to_avg_len(eucl_dist_traces[maze]['right'], N=100)
+
+    meanl = np.nanmean(left, 0)[3:-3]
+    meanr = np.nanmean(right, 0)[3:-3]
+    stdl = np.nanstd(left, 0)[3:-3]
+    stdr = np.nanstd(right, 0)[3:-3]
+
+    plot_mean_and_error(meanl, stdl, ax, color=color, label='left')
+    plot_mean_and_error(meanr, stdr, ax, color=desaturate_color(color), label='right')
+    ax.legend()
+
+    ax.set(title=maze, xlabel='norm. escape progression')
+
+
+
+axarr[0].set(ylabel='Euclidea dist to shelter')
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'mean eucl dist trace'))

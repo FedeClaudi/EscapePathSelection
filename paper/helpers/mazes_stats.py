@@ -18,17 +18,23 @@ def get_mazes():
     return mazes
 
 def get_euclidean_dist_for_dataset(datasets, shelter_pos):
-    eucl_dists = {}
+    eucl_dists, eucl_dists_means, eucl_dists_traces = {}, {}, {}
     for name, data in datasets.items():
+
         means = {a:[] for a in ['left', 'right']}
+        traces = {a:[] for a in ['left', 'right']}
+        
         for n, trial in data.iterrows():
             if trial.escape_arm == "center": continue
 
             d = calc_distance_from_point(trial.body_xy[trial.out_of_t_frame-trial.stim_frame:, :], shelter_pos)
             means[trial.escape_arm].append(np.mean(d))
+            traces[trial.escape_arm].append(d)
 
         eucl_dists[name] = np.nanmean(means['left'])/(np.nanmean(means['right']) + np.nanmean(means['left']))
-    return eucl_dists
+        eucl_dists_means[name] = means
+        eucl_dists_traces[name] = traces
+    return eucl_dists, eucl_dists_means, eucl_dists_traces
 
 if __name__ == '__main__':
     get_mazes()
