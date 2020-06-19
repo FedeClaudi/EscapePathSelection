@@ -1,17 +1,37 @@
 import sys
 sys.path.append('./')
 
+import os
+import numpy as np
+import pandas as pd
+import cv2
+import warnings
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
+from fcutils.file_io.io import load_yaml
+from fcutils.maths.geometry import (
+		calc_angle_between_vectors_of_points_2d, 
+		calc_distance_between_points_in_a_vector_2d, 
+		calc_angle_between_points_of_vector_2d,
+		calc_ang_velocity,
+		)
 
-
-
+from paper.dbase.utils import (
+		get_roi_enters_exits, 
+		convert_roi_id_to_tag, 
+		get_arm_given_rois, 
+		get_roi_at_each_frame,
+		correct_tracking_data,
+		correct_tracking_data,
+		)
+from paper.dbase.ccm import run as get_matrix
 
 # !--------------------------------------------------------------------------- #
 #               !                   TEMPLATES                                  #
 # !--------------------------------------------------------------------------- #
-
 def make_templates_table(key):
-	from database.TablesDefinitionsV4 import Session
+	from paper.dbase.TablesDefinitionsV4 import Session
 	# Load yaml with rois coordinates
 	rois = load_yaml("database/maze_components/MazeModelROILocation.yml")
 
@@ -200,7 +220,7 @@ def make_commoncoordinatematrices_table(table, key):
 	# 	mouse = split[-1]
 	# if key['mouse_id'] != mouse: return
 
-	from database.TablesDefinitionsV4 import Recording, Session
+	from paper.dbase.TablesDefinitionsV4 import Recording, Session
 
 	"""make_commoncoordinatematrices_table [Allows user to align frame to model
 	and stores transform matrix for future use]
@@ -260,7 +280,7 @@ def make_commoncoordinatematrices_table(table, key):
 # !--------------------------------------------------------------------------- #
 
 def make_stimuli_table(table, key):
-	from database.TablesDefinitionsV4 import Recording, Session
+	from paper.dbase.TablesDefinitionsV4 import Recording, Session
 	from Utilities.video_and_plotting.video_editing import Editor
 	tb = ToolBox()
 
@@ -529,7 +549,7 @@ def make_visual_stimuli_metadata(table):
 #   !                             TRACKING DATA                                #
 # !--------------------------------------------------------------------------- #
 def make_trackingdata_table(table, key):
-	from database.TablesDefinitionsV4 import Recording, Session, CCM, MazeComponents
+	from paper.dbase.TablesDefinitionsV4 import Recording, Session, CCM, MazeComponents
 
 	# split = key['session_name'].split("_")
 	# if len(split) > 2: raise ValueError
@@ -605,7 +625,7 @@ def make_trackingdata_table(table, key):
 		speed = calc_distance_between_points_in_a_vector_2d(corrected_data.values)
 
 		# get direction of movement
-		dir_of_mvt = calc_angle_between_points_of_vector(np.vstack([corrected_data['x'], corrected_data['y']]).T)
+		dir_of_mvt = calc_angle_between_points_of_vector_2d(np.vstack([corrected_data['x'], corrected_data['y']]).T)
 		dir_of_mvt[np.where(speed == 0)[0]] = np.nan # no dir of mvmt when there is no mvmt
 
 		# Add new vals to df
@@ -688,7 +708,7 @@ def make_exploration_table(table, key):
 	# 	mouse = split[-1]
 	# if key['mouse_id'] != mouse: return
 
-	from database.TablesDefinitionsV4 import Session, TrackingData, Stimuli
+	from paper.dbase.TablesDefinitionsV4 import Session, TrackingData, Stimuli
 	if key['uid'] < 184: fps = 30 # ! hardcoded
 	else: fps = 40
 
@@ -772,7 +792,7 @@ def make_trials_table(table, key):
 
 	key_copy = key.copy()
 
-	from database.TablesDefinitionsV4 import Session, TrackingData, Stimuli, Recording
+	from paper.dbase.TablesDefinitionsV4 import Session, TrackingData, Stimuli, Recording
 	if key['uid'] < 184: fps = 30 # ! hardcoded
 	else: fps = 40
 
@@ -794,6 +814,7 @@ def make_trials_table(table, key):
 		table._insert_placeholder(key)
 		return
 
+	print(f'\nAdding trials from session {data.session_name[0]} experiment {data.experiment_name[0]}')
 	# Get the last next time that the mouse reaches the shelter
 	stim_frame = data.overview_frame.values[0]
 
@@ -912,27 +933,27 @@ def make_trials_table(table, key):
 		for k in delete_keys:
 			del trial_key[k]
 
-		trial_key['body_xy'] = parts_tracking.ix['body'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['body_speed'] = parts_tracking.ix['body'].speed[stim_frame:end_frame]
-		trial_key['body_dir_mvmt'] = parts_tracking.ix['body'].direction_of_mvmt[stim_frame:end_frame]
-		trial_key['body_rois'] = parts_tracking.ix['body'].tracking_data[stim_frame:end_frame, -1]
-		trial_key['body_orientation'] = bones_tracking.ix['body'].orientation[stim_frame:end_frame]
-		trial_key['body_angular_vel'] = bones_tracking.ix['body'].angular_velocity[stim_frame:end_frame]
+		trial_key['body_xy'] = parts_tracking.loc['body'].tracking_data[stim_frame:end_frame, :2]
+		trial_key['body_speed'] = parts_tracking.loc['body'].speed[stim_frame:end_frame]
+		trial_key['body_dir_mvmt'] = parts_tracking.loc['body'].direction_of_mvmt[stim_frame:end_frame]
+		trial_key['body_rois'] = parts_tracking.loc['body'].tracking_data[stim_frame:end_frame, -1]
+		trial_key['body_orientation'] = bones_tracking.loc['body'].orientation[stim_frame:end_frame]
+		trial_key['body_angular_vel'] = bones_tracking.loc['body'].angular_velocity[stim_frame:end_frame]
 
-		trial_key['head_orientation'] = bones_tracking.ix['head'].orientation[stim_frame:end_frame]
-		trial_key['head_angular_vel'] = bones_tracking.ix['head'].angular_velocity[stim_frame:end_frame]
+		trial_key['head_orientation'] = bones_tracking.loc['head'].orientation[stim_frame:end_frame]
+		trial_key['head_angular_vel'] = bones_tracking.loc['head'].angular_velocity[stim_frame:end_frame]
 
-		trial_key['snout_xy'] = parts_tracking.ix['snout'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['snout_speed'] = parts_tracking.ix['snout'].speed[stim_frame:end_frame]
-		trial_key['snout_dir_mvmt'] = parts_tracking.ix['snout'].direction_of_mvmt[stim_frame:end_frame]
+		trial_key['snout_xy'] = parts_tracking.loc['snout'].tracking_data[stim_frame:end_frame, :2]
+		trial_key['snout_speed'] = parts_tracking.loc['snout'].speed[stim_frame:end_frame]
+		trial_key['snout_dir_mvmt'] = parts_tracking.loc['snout'].direction_of_mvmt[stim_frame:end_frame]
 
-		trial_key['neck_xy'] = parts_tracking.ix['neck'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['neck_speed'] = parts_tracking.ix['neck'].speed[stim_frame:end_frame]
-		trial_key['neck_dir_mvmt'] = parts_tracking.ix['neck'].direction_of_mvmt[stim_frame:end_frame]
+		trial_key['neck_xy'] = parts_tracking.loc['neck'].tracking_data[stim_frame:end_frame, :2]
+		trial_key['neck_speed'] = parts_tracking.loc['neck'].speed[stim_frame:end_frame]
+		trial_key['neck_dir_mvmt'] = parts_tracking.loc['neck'].direction_of_mvmt[stim_frame:end_frame]
 
-		trial_key['tail_xy'] = parts_tracking.ix['tail_base'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['tail_speed'] = parts_tracking.ix['tail_base'].speed[stim_frame:end_frame]
-		trial_key['tail_dir_mvmt'] = parts_tracking.ix['tail_base'].direction_of_mvmt[stim_frame:end_frame]
+		trial_key['tail_xy'] = parts_tracking.loc['tail_base'].tracking_data[stim_frame:end_frame, :2]
+		trial_key['tail_speed'] = parts_tracking.loc['tail_base'].speed[stim_frame:end_frame]
+		trial_key['tail_dir_mvmt'] = parts_tracking.loc['tail_base'].direction_of_mvmt[stim_frame:end_frame]
 
 		subtable.insert1(trial_key)
 

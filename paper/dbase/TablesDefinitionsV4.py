@@ -32,25 +32,25 @@ class Mouse(dj.Manual):
 #                                     MAZE                                     #
 # ---------------------------------------------------------------------------- #
 
-@schema
-class Maze(dj.Manual):
-	definition = """
-		# stores info about maze designs
-		maze_id: int
-		maze_name: varchar(128)
-		---
-		left_path_length: float
-		right_path_length: float # length of right path in CM
-		center_path_length: float
+# @schema
+# class Maze(dj.Manual):
+# 	definition = """
+# 		# stores info about maze designs
+# 		maze_id: int
+# 		maze_name: varchar(128)
+# 		---
+# 		left_path_length: float
+# 		right_path_length: float # length of right path in CM
+# 		center_path_length: float
 
-		left_path_angle: int  # angle of start of path from T
-		right_path_angle: int
-		center_path_angle: float
+# 		left_path_angle: int  # angle of start of path from T
+# 		right_path_angle: int
+# 		center_path_angle: float
 
-		has_catwalk: int # 1 or 0
-	"""
+# 		has_catwalk: int # 1 or 0
+# 	"""
 
-	# ? population method is in populate_database
+# 	# ? population method is in populate_database
 
 
 
@@ -545,36 +545,36 @@ class Trials(dj.Imported):
 
 
 
-# ---------------------------------------------------------------------------- #
-#                                    HOMINGS                                   #
-# ---------------------------------------------------------------------------- #
-@schema
-class Homings(dj.Manual):
-	definition = """
-		homing_id: varchar(128) # recording_uid + t_enter time
-		---
-		-> Session
-		-> Recording
-		stim_id:  varchar(128)  			# stimulus_uid entry in Stimuli table, if it was spontaneous = "none"
-		stim_frame: int						# stim frame relative to threat enter
-		fps: int  
-		is_trial: enum("true", "false")
-		tracking_data: longblob 			# Mx2x4 array with tracking data for each frame, X,Y each body part (snout, neck, body, tail)
-		outward_tracking_data: longblob		# same as above, but for shelter -> threat platform
-		threat_tracking_data: longblob	    # just tracking when on threat
+# # ---------------------------------------------------------------------------- #
+# #                                    HOMINGS                                   #
+# # ---------------------------------------------------------------------------- #
+# @schema
+# class Homings(dj.Manual):
+# 	definition = """
+# 		homing_id: varchar(128) # recording_uid + t_enter time
+# 		---
+# 		-> Session
+# 		-> Recording
+# 		stim_id:  varchar(128)  			# stimulus_uid entry in Stimuli table, if it was spontaneous = "none"
+# 		stim_frame: int						# stim frame relative to threat enter
+# 		fps: int  
+# 		is_trial: enum("true", "false")
+# 		tracking_data: longblob 			# Mx2x4 array with tracking data for each frame, X,Y each body part (snout, neck, body, tail)
+# 		outward_tracking_data: longblob		# same as above, but for shelter -> threat platform
+# 		threat_tracking_data: longblob	    # just tracking when on threat
 		
-		homing_arm: varchar(128) 			# 0 for left and 1 for right
-		outward_arm: varchar(128) 			# 0 for left and 1 for right
+# 		homing_arm: varchar(128) 			# 0 for left and 1 for right
+# 		outward_arm: varchar(128) 			# 0 for left and 1 for right
 		
-		time_out_of_t: float 				# time in seconds out of the threat platform
-		frame_out_of_t: int 				# time in frames out of the threat platform
-		homing_duration: float 				# homing duration in seconds
+# 		time_out_of_t: float 				# time in seconds out of the threat platform
+# 		frame_out_of_t: int 				# time in frames out of the threat platform
+# 		homing_duration: float 				# homing duration in seconds
 
-		last_shelter_exit: int  			# frame at which it exited the shelter
-		threat_enter: int 					# frame at which it entered the threat
-		last_t_exit: int 					# frame at which it last left the threat platform
-		first_s_enter: int 					# frame at which it first got back in the shelter
-	"""
+# 		last_shelter_exit: int  			# frame at which it exited the shelter
+# 		threat_enter: int 					# frame at which it entered the threat
+# 		last_t_exit: int 					# frame at which it last left the threat platform
+# 		first_s_enter: int 					# frame at which it first got back in the shelter
+# 	"""
 
 
 

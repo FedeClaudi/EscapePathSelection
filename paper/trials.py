@@ -101,6 +101,11 @@ class TrialsLoader(Bayes):
         """ Query the DJ database table AllTrials for the trials that match the conditions """
         data = Session * Session.Metadata * Session.Shelter  - 'experiment_name="Foraging"'
 
+
+        if maze_design == 1 and self.experiment_name != 'shortcut':
+            # Some sessions fromshortcut are mistakenly labelled as having maze=1 instad of maze=8
+            data -= 'experiment_name="shortcut"'
+
         if maze_design is not None:
             data = (data & "maze_type={}".format(maze_design))
 
@@ -117,6 +122,7 @@ class TrialsLoader(Bayes):
                 data = (data & "shelter={}".format(0))
                 
         if not len(data): print("Query didn't yield any results!")
+
 
         if df:
             return pd.DataFrame((data).fetch())

@@ -10,6 +10,7 @@ import pandas as pd
 import os
 from math import sqrt
 from scipy.signal import resample
+from brainrender.colors import colorMap
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
@@ -297,10 +298,12 @@ save_figure(f, os.path.join(paths.plots_dir, f'mean angle on threat {"quiver" if
     Bin each trajectory in time, and plot the average trajectory
 """
 ONLY_CATWALK = True
-f, axarr= plt.subplots(ncols=5, nrows=1, figsize=(22, 7))
+f, axarr= plt.subplots(ncols=5, nrows=2, figsize=(22, 7))
 f.suptitle('Average haeding directoin')
 
-for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
+mazes_datas = {}
+
+for m, (maze, trs) in enumerate(trials.datasets.items()):
     trs = trs.loc[trs.escape_arm != 'center']
 
     lcolor = paper.maze_colors[maze]
@@ -310,6 +313,12 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
     for i, trial in trs.iterrows():
 
         if ONLY_CATWALK and trial.body_xy[0, 1] > 230: continue 
+
+        if trial.escape_arm == 'left':
+            ax = axarr[0, m]
+        else: 
+            ax = axarr[1, m]
+
         ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=2, color=[.9, .9, .9], zorder=-10)
 
         # bdy dir of mvmt = 90 means going towards the shelter
@@ -320,14 +329,28 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
         data[trial.escape_arm]['y'].append(trial.body_xy[:, 1])
         data[trial.escape_arm]['t'].append(theta)
 
+    mazes_datas[maze] = data
+    
+    
     # Plot the average heading direction per bin
-    for color, (arm, xyt) in zip([lcolor, rcolor], data.items()):
+    # make sure to use the same number of trials
+    ntrials = np.min([len(data['left']['x']), len(data['right']['x'])])
+
+    for color, (arm, xyt), ax in zip([lcolor, rcolor], data.items(), [axarr[0, m], axarr[1, m]]):
+        # Select subset of trials
+        idx = random.choices(np.arange(len(xyt['x'])), k=ntrials)
+        
+        for key in xyt.keys():
+            xyt[key] = [xyt[key][i] for i in idx]
+
+        if len(xyt['x']) != ntrials: raise ValueError
+
         x = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['x']), 0)
         y = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['y']), 0)
         t = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['t']), 0)
 
         l = len(x)
-        bins = np.arange(0, l, 8)
+        bins = np.arange(20, l, 11)
 
         for n, bin in enumerate(bins[:-1]):
             meanx = np.nanmean(x[bin:bins[n+1]])
@@ -337,6 +360,7 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
             # Plot arrow with meadian heading direction
             dx = np.cos(np.radians(meant))
             dy = np.sin(np.radians(meant))
+
             ax.arrow(meanx, meany, dx*12, dy*12, width=3, head_width=6, ec='k', lw=.2, fc=color)
 
             # Plot circle segment with low and high quartile range of theta
@@ -346,9 +370,118 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
             arc = Wedge((meanx, meany),  30, width=15, theta1=lowt, theta2=hight, fc=color, alpha=.4)
             ax.add_patch(arc)
 
-      
+            ax.axis('off')
+            ax.set(title=maze if arm == 'left' else None, xlim=[460, 540], ylim=[150, 330])
 
 
-    ax.axis('off')
-    ax.set(title=maze, xlim=[460, 540], ylim=[150, 330])
 save_figure(f, os.path.join(paths.plots_dir, f'mean heading dir on T binned'))
+
+# %%
+"""
+    Predict escape arm as a function of heading direction
+
+    Using mazes_datas generated above
+"""
+import random 
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+
+
+N_repeats = 1000
+bins = None
+
+
+f, axarr = plt.subplots(ncols=6, sharey=True,figsize=(22, 7))
+f.suptitle(f'Logistic regression: predict arm from dir of mvmt\n {N_repeats} repeats per maze')
+
+for ax, (maze, data) in tqdm(zip(axarr[1:], mazes_datas.items())):
+
+    # --------------------------------- prep data -------------------------------- #
+    x = data['left']['x'] + data['right']['x']
+    y = data['left']['y'] + data['right']['y']
+    t = data['left']['t'] + data['right']['t']
+    arm = [0 for l in np.arange(len(data['left']['x']))] + \
+                [1 for r in np.arange(len(data['right']['x']))]
+
+    for xx, yy in zip(x,y):
+        axarr[0].plot(xx, yy, lw=.25, color=[.7, .7, .7])
+
+    # Get single frames
+    X, Y, A, T = [], [], [], []
+    for xx, yy, tt, a in zip(x, y, t, arm):
+        X.extend(list(xx))
+        Y.extend(list(yy))
+        T.extend(list(tt))
+        A.extend([a for i in xx])
+
+    # Keep the same number of frames for left and right arm
+    df = pd.DataFrame(dict(x=X, y=Y, arm=A, t=T)).dropna()
+
+    left = df.loc[df.arm == 0]
+    right = df.loc[df.arm == 1]
+    
+    if len(left) < len(right):
+        right = right.sample(len(left))
+    else:
+        left = left.sample(len(right))
+    df = pd.concat([left, right])
+    df = df.loc[(df.y > 150)&(df.y < 330)]
+    
+    # --------------------------------- fit model -------------------------------- #
+    # Fit the model 10 times and take average
+    allcorrect, allincorrect = [], []
+    for repeat in np.arange(N_repeats):
+        # Create training and test sets
+        xtrain, xtest, ytrain, ytest = train_test_split(df[['x', 'y', 't']], df[['arm']], test_size=0.33)
+        
+        # Fit model ad predict test
+        model = LogisticRegression().fit(xtrain[['t']], ytrain)
+        ypred = model.predict(xtest[['t']])
+
+        # Get which predictions are correct
+        correct = [1 if yp==y else 0 for yp, y in zip(ypred, ytest['arm'].values)]
+
+        # Bin model's accuracy versus Y coord
+        if bins is None:
+            counts, bins = np.histogram(xtest.y)
+        else:
+            counts, _ = np.histogram(xtest.y)
+
+        counts = counts.astype(np.float64)
+        counts[counts < 10] = np.nan #  make sure only bins with enough samples are kept
+
+        # Get proportion of correct vs incorrect
+        correct_counts, _ = np.histogram(xtest.y.iloc[np.where(np.array(correct))], bins=bins)
+        incorrect_counts, _ = np.histogram(xtest.y.iloc[np.where(1-np.array(correct))], bins=bins)
+
+        allcorrect.append(correct_counts/counts)
+        allincorrect.append(incorrect_counts/counts)
+
+    # Plot
+    x = bins[0:-1] # + np.cumsum(np.diff(bins)/2)
+    
+
+    colors = [colorMap(p, 'Greens', vmin=0, vmax=1) for p in np.mean(allcorrect, 0)]
+
+    ax.barh(x, np.mean(allcorrect, 0), xerr=np.std(allcorrect, 0), 
+                color=colors, height=12, left=0, alpha=.75, 
+                orientation='horizontal', align='edge')
+
+    ax.axvline(0.5, lw=2, color=[.6, .6, .6], ls='--', zorder=-1)
+    ax.axvline(0.25, lw=1, color=[.6, .6, .6], ls=':', zorder=-1)
+    ax.axvline(0.75, lw=1, color=[.6, .6, .6], ls=':', zorder=-1)
+
+    ax.set(title=maze, xlabel='fraction correct', xticks=[0, .5, 1], xlim=[0, 1])
+
+# axarr[0].axhline(150)
+# axarr[0].axhline(330)
+
+axarr[0].axis('off')
+axarr[0].set(ylabel='Y coordinate')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'predict arm from theta'))
+
+
+

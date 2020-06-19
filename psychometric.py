@@ -34,7 +34,7 @@ from paper.helpers.mazes_stats import get_mazes
 print("Loading data")
 params = dict(
     naive = None,
-    lights = 1, 
+    lights = None, 
     tracking = 'all'
 )
 
@@ -224,7 +224,6 @@ for maze, data in trials.datasets.items():
         if trial.escape_arm == 'left': binaries[maze].append(0)
         else: binaries[maze].append(1)
 
-# %%
 # Multitest chi square with bonferroni
 from statsmodels.stats.proportion import proportions_chisquare_allpairs
 
