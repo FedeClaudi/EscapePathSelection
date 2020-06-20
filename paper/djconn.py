@@ -2,7 +2,12 @@
 import datajoint as dj
 
 ip = "localhost"
-#psw fedeclaudi
+
+import sys
+is sys.platform == "darwin":
+    psw = 'fedeclaudi'
+else:
+    psw = 'fede'
 
 def start_connection():
     """
@@ -24,7 +29,7 @@ def start_connection():
             return None, None
 
         dj.config['database.user'] = 'root'
-        dj.config['database.password'] = 'fede'
+        dj.config['database.password'] = psw
         dj.config['database.safemode'] = True
         dj.config['safemode']= False
 
