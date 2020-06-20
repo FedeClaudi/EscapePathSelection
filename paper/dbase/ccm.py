@@ -1,6 +1,7 @@
 import sys
 sys.path.append('./') 
 
+from paper import paths
 from paper.dbase.CCB.video_funcs import register_arena
 import os 
 import numpy as np
@@ -73,10 +74,8 @@ def run(videopath, maze_model=None, old_mode=False):
     """
         Credit to Philip Shamash (Branco Lab) -  https://github.com/BrancoLab/Common-Coordinate-Behaviour
     """
-    paths = load_yaml('paths.yml')
-    savepath = paths['commoncoordinatebehaviourmatrices']
     savename = os.path.split(videopath)[-1]
-    registration = register_arena(padded, 'nofisheye', 0, 0, maze_model, points, savepath, savename)
+    registration = register_arena(padded, 'nofisheye', 0, 0, maze_model, points, paths.commoncoordinatebehaviourmatrices, savename)
 
     return registration[0], points, top_pad, side_pad
 

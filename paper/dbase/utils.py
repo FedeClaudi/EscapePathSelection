@@ -1,6 +1,28 @@
 from fcutils.file_io.io import load_yaml
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+# For manual tables
+def insert_entry_in_table(dataname, checktag, data, table, overwrite=False):
+    """
+    dataname: value of indentifying key for entry in table
+    checktag: name of the identifying key ['those before the --- in the table declaration']
+    data: entry to be inserted into the table
+    table: database table
+    """
+    if dataname in list(table.fetch(checktag)):
+            return
+    try:
+        table.insert1(data)
+        print('     ... inserted {} in table'.format(dataname))
+    except:
+        if dataname in list(table.fetch(checktag)):
+                print('Entry with id: {} already in table'.format(dataname))
+        else:
+            print(table)
+            raise ValueError('Failed to add data entry {}-{} to {} table'.format(checktag, dataname, table.full_table_name))
+
 
 def correct_tracking_data(uncorrected, M, ypad, xpad, exp_name, sess_uid):
 

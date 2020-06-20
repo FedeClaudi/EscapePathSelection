@@ -10,12 +10,15 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from fcutils.file_io.io import load_yaml
+from fcutils.file_io.utils import listdir
 from fcutils.maths.geometry import (
 		calc_angle_between_vectors_of_points_2d, 
 		calc_distance_between_points_in_a_vector_2d, 
 		calc_angle_between_points_of_vector_2d,
 		calc_ang_velocity,
 		)
+from fcutils.video.utils import get_video_params
+from fcutils.maths.stimuli_detection import find_audio_stimuli, find_visual_stimuli
 
 from paper.dbase.utils import (
 		get_roi_enters_exits, 
@@ -25,7 +28,9 @@ from paper.dbase.utils import (
 		correct_tracking_data,
 		correct_tracking_data,
 		)
+from paper.dbase.toolbox import ToolBox
 from paper.dbase.ccm import run as get_matrix
+from paper import paths
 
 # !--------------------------------------------------------------------------- #
 #               !                   TEMPLATES                                  #
@@ -33,11 +38,11 @@ from paper.dbase.ccm import run as get_matrix
 def make_templates_table(key):
 	from paper.dbase.TablesDefinitionsV4 import Session
 	# Load yaml with rois coordinates
-	rois = load_yaml("database/maze_components/MazeModelROILocation.yml")
+	rois = load_yaml("paper/dbase/MazeModelROILocation.yml")
 
 	# Only keep the rois relevant for each experiment
 	experiment_name = (Session & key).fetch("experiment_name")[0]
-	rois_per_exp = load_yaml("database/maze_components/MazeModelROI_perExperiment.yml")
+	rois_per_exp = load_yaml("paper/dbase/MazeModelROI_perExperiment.yml")
 	rois_per_exp = rois_per_exp[experiment_name]
 	selected_rois = {k:(p if k in rois_per_exp else -1)  for k,p in rois.items()}
 
@@ -118,12 +123,12 @@ def make_recording_table(table, key):
 		mantis(table, key, 'mantis', tb)
 
 
-def fill_in_recording_paths(recordings, populator):
+def fill_in_recording_paths(recordings):
 	# fills in FilePaths table
-	videos = 	 [os.path.join(populator.raw_video_folder, v) for v in os.listdir(populator.raw_video_folder)]
-	poses = 	 [os.path.join(populator.raw_pose_folder, p) for p in os.listdir(populator.raw_pose_folder)]
-	metadatas =  [os.path.join(populator.raw_metadata_folder, m) for m in os.listdir(populator.raw_metadata_folder)]
-	ais =		 [os.path.join(populator.raw_ai_folder, m) for m in os.listdir(populator.raw_ai_folder)]
+	videos = 	 listdir(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
+	poses = 	 listdir(paths.tracked_data_folder)
+	metadatas =  listdir(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))
+	ais =		 listdir(paths.raw_ai_folder)
 
 	recs_in_part_table = recordings.FilePaths.fetch("recording_uid")
 
@@ -148,7 +153,9 @@ def fill_in_recording_paths(recordings, populator):
 						continue
 				else:
 					# continue  # ! remove this
-					raise FileNotFoundError(record_uid)
+					print('Skipped: ', record_uid)
+					continue
+					# raise FileNotFoundError(record_uid)
 			else:
 				print("Something went wrong: ", record_uid)
 				continue  # ! remove this
@@ -229,11 +236,10 @@ def make_commoncoordinatematrices_table(table, key):
 	# Get the maze model template according to the experiment being processed
 	if int(key["uid"]<248) or int(key["uid"]>301):
 		old_mode = True
-		maze_model = cv2.imread('Utilities\\video_and_plotting\\mazemodel_old.png')
 	else:
 		old_mode = False
-		maze_model = cv2.imread('Utilities\\video_and_plotting\\mazemodel_old.png')
-
+	
+	maze_model = cv2.imread('paper\dbase\CCB\mazemodel_old.png')
 	maze_model = cv2.resize(maze_model, (1000, 1000))
 	maze_model = cv2.cvtColor(maze_model, cv2.COLOR_RGB2GRAY)
 
@@ -281,7 +287,6 @@ def make_commoncoordinatematrices_table(table, key):
 
 def make_stimuli_table(table, key):
 	from paper.dbase.TablesDefinitionsV4 import Recording, Session
-	from Utilities.video_and_plotting.video_editing import Editor
 	tb = ToolBox()
 
 	# split = key['session_name'].split("_")
@@ -333,10 +338,11 @@ def make_stimuli_table(table, key):
 		# Get the FPS for the overview video
 		try:
 			videofile = (Recording.FilePaths & key).fetch1("overview_video")
+			if not os.path.isfile(videofile): raise FileExistsError
 		except:
 			print("could not find videofile for ", key)
 			return
-		nframes, width, height, fps = Editor.get_video_params(videofile)
+		nframes, width, height, fps, is_color = get_video_params(videofile)
 
 		# Get feather file 
 		aifile =(Recording.FilePaths & key).fetch1("ai_file_path")
@@ -349,7 +355,8 @@ def make_stimuli_table(table, key):
 		if not os.path.isfile(feather_file) or not os.path.isfile(groups_file):
 			# ? load the AI file directly
 			# Get stimuli names from the ai file and then stimuli
-			tdms_df, cols = tb.open_temp_tdms_as_df(aifile, move=True, skip_df=True)
+			aifile = aifile.replace('.h5', '.tdms')
+			tdms_df, cols = tb.open_temp_tdms_as_df(aifile, move=False, skip_df=True)
 			groups = tdms_df.groups()
 		else:
 			# load feather and extract info
@@ -475,7 +482,7 @@ def make_stimuli_table(table, key):
 		try:
 			make_behaviourstimuli(table,key)
 		except:
-			print("Could not make behaviour stimuli insert for key: {}",format(key))
+			print("\nCould not make behaviour stimuli insert for key: {}",format(key))
 	else: 
 		make_mantisstimuli(table, key)
 
@@ -622,10 +629,10 @@ def make_trackingdata_table(table, key):
 		corrected_data = pd.DataFrame.from_dict({'x':corrected_data[:, 0], 'y':corrected_data[:, 1]})
 
 		# get speed
-		speed = calc_distance_between_points_in_a_vector_2d(corrected_data.values)
+		speed = calc_distance_between_points_in_a_vector_2d(corrected_data.values[:, 0], corrected_data.values[:, 1])
 
 		# get direction of movement
-		dir_of_mvt = calc_angle_between_points_of_vector_2d(np.vstack([corrected_data['x'], corrected_data['y']]).T)
+		dir_of_mvt = calc_angle_between_points_of_vector_2d(corrected_data['x'], corrected_data['y'])
 		dir_of_mvt[np.where(speed == 0)[0]] = np.nan # no dir of mvmt when there is no mvmt
 
 		# Add new vals to df
@@ -674,7 +681,7 @@ def make_trackingdata_table(table, key):
 		bp1, bp2 = bp_data[bp1].values[:, :2], bp_data[bp2].values[:, :2]
 
 		# get length of the body segment
-		bone_orientation = np.array(calc_angle_between_vectors_of_points_2d(bp1.T, bp2.T))
+		bone_orientation = np.array(calc_angle_between_vectors_of_points_2d(bp1[:, 0], bp1[:, 1], bp2[:, 0], bp2[:, 1]))
 
 		# Get angular velocity
 		bone_angvel = np.array(calc_ang_velocity(bone_orientation))

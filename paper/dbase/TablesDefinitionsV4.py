@@ -197,8 +197,8 @@ class Recording(dj.Imported):
 			visual_stimuli_log:     varchar(256)        # path to .yml file with the log of which visual stimuli were delivered
 		"""
 
-	def make_paths(self, populator):
-		fill_in_recording_paths(self, populator)
+	def make_paths(self):
+		fill_in_recording_paths(self)
 
 	class AlignedFrames(dj.Part):
 		definition = """

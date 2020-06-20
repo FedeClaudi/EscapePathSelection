@@ -28,6 +28,8 @@ def start_connection():
         dj.config['database.safemode'] = True
         dj.config['safemode']= False
 
+        dj.config["enable_python_native_blobs"] = True
+
 
         dj.conn()
 
