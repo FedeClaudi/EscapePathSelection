@@ -596,9 +596,12 @@ def make_trackingdata_table(table, key):
 		try:
 			posedata = pd.read_hdf(pose_file)
 		except:  # adjust path to new winstor path name
-			pathparts = pose_file.split("\\")
-			pathparts.insert(1, "swc")
-			pose_file = os.path.join(*pathparts)
+			# pathparts = pose_file.split("\\")
+			# pathparts.insert(1, "swc")
+			# pose_file = os.path.join(*pathparts)
+			# posedata = pd.read_hdf(pose_file)
+			fld, fl = os.path.split(pose_file)
+			pose_file = os.path.join(paths.tracked_data_folder, fl)
 			posedata = pd.read_hdf(pose_file)
 
 	except:

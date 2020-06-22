@@ -4,7 +4,7 @@ import datajoint as dj
 ip = "localhost"
 
 import sys
-is sys.platform == "darwin":
+if sys.platform == "darwin":
     psw = 'fedeclaudi'
 else:
     psw = 'fede'
