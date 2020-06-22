@@ -4,10 +4,10 @@ import datajoint as dj
 ip = "localhost"
 
 import sys
-if sys.platform == "darwin":
-    psw = 'fedeclaudi'
-else:
-    psw = 'fede'
+# if sys.platform == "darwin":
+#     psw = 'fedeclaudi'
+# else:
+psw = 'fede'
 
 def start_connection():
     """
