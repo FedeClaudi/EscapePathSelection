@@ -26,6 +26,7 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.helpers.mazes_stats import get_mazes
+from paper.utils.explorations import get_maze_explorations
 
 
 # %%
@@ -112,6 +113,14 @@ save_figure(f, os.path.join(paths.plots_dir, 'first_trial_pR'), svg=True)
 
 
 
+
+# %%
+"""
+    Plot p(R) as a function of duration of the exploration and of the
+    distance travelled by the mouse during the exploration
+"""
+for maze, ax in zip(mazes, axarr):
+    explorations = get_maze_explorations(maze,  naive=None, lights=1)
 
 
 # %%

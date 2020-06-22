@@ -3,7 +3,7 @@ import matplotlib as mpl
 # mpl.rcParams['text.color'] = "k"
 # mpl.rcParams['text.usetex'] = False
 
-mpl.rcParams['figure.figsize'] = [20, 16]
+# mpl.rcParams['figure.figsize'] = [20, 16]
 # mpl.rcParams['figure.facecolor'] = "w"
 # mpl.rcParams['figure.autolayout'] = False
 # mpl.rcParams['figure.dpi'] = 80

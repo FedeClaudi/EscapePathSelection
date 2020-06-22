@@ -255,3 +255,5 @@ _ = ax.set(title='raw p(R) per maze', ylabel='p(R)', yticks=np.arange(0, 1.25, .
 
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, 'raw_pR_test'), svg=True)
+
+

@@ -170,7 +170,9 @@ save_figure(f, os.path.join(paths.plots_dir, 'flipflop_pR'), svg=True)
 
 # %%
 """
-    Plot all explorations
+    Plot all explorations for baseline and flipped of each mouse
+    flipped starts after the last baseline stimulus +
+    some manually defined shift. 
 """
 def get_stim_comulative_frame_num_in_sess(stim, rec_uid, rlengths):
         """
@@ -191,7 +193,7 @@ def get_stim_comulative_frame_num_in_sess(stim, rec_uid, rlengths):
         except:
             return int(pre_stim_frames + stim.stim_frame)
 
-
+# Shifts to get the start of the flipped exploration right
 flipped_expl_shifts = {
     '181114_CA3151':220,
     '191216_CA831': 25,
@@ -204,7 +206,7 @@ flipped_expl_shifts = {
 }
 
 
-
+first_trials = {}
 
 f, axarr = plt.subplots(ncols=6, nrows=4, figsize=(22, 12))
 f.suptitle('Flip Flop explorations')
@@ -278,6 +280,16 @@ for sess in sessions:
     distance['baseline'].append(np.nansum(body_tracking[sess].s[int(60*bs.fps):bsframe]))
     distance['flipped'].append(np.nansum(body_tracking[sess].s[bsend:fpstart]))
 
+    # Keep some summary data
+    first_trials[sess] = dict(
+        baseline = bs,
+        baseline_exp_dur = duration['baseline'][-1],
+        baseline_distance = distance['baseline'][-1],
+        flipped = fp,
+        flipped_exp_dur = duration['flipped'][-1],
+        flipped_distance = distance['flipped'][-1],
+    )
+
     # Plot
     ax = axarr.flat[n]
     ax.plot(body_tracking[sess].x[300:bsframe], body_tracking[sess].y[300:bsframe], 
@@ -292,6 +304,8 @@ for sess in sessions:
     n += 1
 
 
+
+# Plot KDEs and clean axes + save
 
 # bins = axarr.flat[-2].hist(duration['baseline'], color='green',  bins=15,
 #                 density=True, alpha=.5, label='baseline')
@@ -337,33 +351,64 @@ save_figure(f, os.path.join(save_fld, 'ff_exploration'))
 """
     Plot p(R) of each first trial (baseline vs flipped)
 """
+# TODO quantify p(R) vs distance and duration 
+# maybe the best way is to bin trials based on these metrics
+
+base, flip = dict(short=[], expl_dur=[], expl_dist=[]), dict(short=[], expl_dur=[], expl_dist=[])
+for sess, data in first_trials.items():
+    bs, fp = data['baseline'], data['flipped']
+    if bs.escape_arm == 'left':
+        base['short'].append(0)
+    else:
+        base['short'].append(1)
+
+    if fp.escape_arm == 'left':
+        flip['short'].append(1)
+    else:
+        flip['short'].append(0)
+
+    
+    base['expl_dur'].append(data['baseline_exp_dur'])
+    flip['expl_dur'].append(data['flipped_exp_dur'])
+    base['expl_dist'].append(data['baseline_distance'])
+    flip['expl_dist'].append(data['flipped_distance'])
+
+base = pd.DataFrame(base)
+flip = pd.DataFrame(flip)
+print(f'First trial p(R) baseline {round(base.short.mean(), 2)} - p(L) flipped {round(flip.short.mean(), 2)}')
 
 
-baselines, flippeds = [], []
-f, axarr = plt.subplots(ncols=2, figsize=(22, 12))
 
-for sess in sessions:
-    baseline = baseline_trials.loc[baseline_trials.session_name == sess]
-    flipped = flipped_trials.loc[flipped_trials.session_name == sess]
+f, axarr = plt.subplots(nrows=2, figsize=(16, 11))
 
-    if len(baseline) and len(flipped):
-        bs, fp = baseline.iloc[0], flipped.iloc[0]
-        if bs.escape_arm == 'left':
-            baselines.append(0)
-        else:
-            baselines.append(1)
+for ax, metric, nbins in zip(axarr, ['expl_dur', 'expl_dist'], [5, 10]):
+    _, bins = np.histogram(base[metric], bins=nbins)
 
-        if fp.escape_arm == 'left':
-            flippeds.append(0)
-        else:
-            flippeds.append(1)
+    for df, col in zip([base, flip], [[.6, .6, .6], [.3, .3, .3]]):
+        xx, yy = [], []
+        for n in np.arange(len(bins)-1):
+            trials = df.loc[(df[metric]>bins[n])&(df[metric] <= bins[n+1])]
+            x = np.mean([bins[n], bins[n+1]])
+            
+            if len(trials) > 1:
+                xx.append(x)
+                ax.text(x, trials.short.mean()+.02, len(trials))
+                yy.append(trials.short.mean())
 
 
-        axarr[0].plot(bs.body_xy[:, 0], bs.body_xy[:, 1], c=arms_colors[bs.escape_arm])
-        axarr[1].plot(fp.body_xy[:, 0], fp.body_xy[:, 1], c=arms_colors[fp.escape_arm])
+        ax.plot(xx, yy, 'o-', color=col)
+
+axarr[0].set(title='p(R) on first trial vs exploration duration',
+                 xlabel='duration (min)', ylabel='p(R)')
+axarr[0].set(title='p(R) on first trial vs exploration distance covered', 
+                xlabel='distance covered (px)', ylabel='p(R)')
+
+clean_axes(f)
+set_figure_subplots_aspect(wspace=0.5, hspace=0.3, bottom=.25,
+        top=.85, left=.15, right=1-.15)
+save_figure(f, os.path.join(save_fld, 'ff_pR_firs_trial'))
 
 
-print(f'First trial p(R) baseline {round(np.mean(baselines), 2)} - p(L) flipped {round(1 - np.mean(flippeds), 2)} - n mice: {len(flippeds)}')
-
+# %%
 
 # %%
