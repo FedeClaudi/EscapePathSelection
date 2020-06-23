@@ -16,7 +16,7 @@ import os
 from math import sqrt
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
-from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
+from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, plot_mean_and_error
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.maths.distributions import get_distribution
 from fcutils.plotting.colors import desaturate_color
@@ -119,8 +119,57 @@ save_figure(f, os.path.join(paths.plots_dir, 'first_trial_pR'), svg=True)
     Plot p(R) as a function of duration of the exploration and of the
     distance travelled by the mouse during the exploration
 """
-for maze, ax in zip(mazes, axarr):
-    explorations = get_maze_explorations(maze,  naive=None, lights=1)
+
+f, axarr = plt.subplots(nrows=5, sharex=True, sharey=True, figsize=(16, 9))
+mazes = get_mazes()
+mazes = {k:m for k,m in mazes.items() if k in paper.five_mazes}
+
+METRIC = 'duration_s'
+labes = dict(duration_s='duration (s)', distance_covered='distance_covered (px)')
+
+for n, maze, ax in zip([1, 2, 3, 4, 6], mazes.keys(), axarr):
+    # For each session get the first trial and the exploration's metric
+    explorations = get_maze_explorations(n)
+    trs = trials.datasets[maze]
+
+    X, Y = [], []
+    for sess in trs.session_name.unique():
+        try:
+            sess_exp = explorations.loc[explorations.session_name == sess].iloc[0]
+        except: 
+            print('skip', sess)
+            continue
+        
+
+        trial = trs.loc[trs.session_name == sess].iloc[0]
+
+        X.append(sess_exp[METRIC])
+        Y.append(1 if trial.escape_arm == 'right' else 0)
+    
+    # Bin based on exploration metrix
+    _, bins = np.histogram(X)
+    x, y, s = [], [], []
+    for b in np.arange(len(bins)-1):
+        x.append(np.mean([bins[b+1], bins[b]]))
+
+        t = [t for d,t in zip(X,Y) if d > bins[b] and d <= bins[b+1]]
+        y.append(np.nanmean(t))
+        s.append(np.nanstd(t))
+
+    # Plot
+    plot_mean_and_error(np.array(y), np.array(s), ax, 
+                    color=paper.maze_colors[maze], x=np.array(x))
+
+    ax.axhline(grouped_pRs.loc[grouped_pRs.dataset==maze]['mean'].iloc[0], lw=2, 
+                color=desaturate_color(paper.maze_colors[maze]), ls='--', alpha=.7, zorder=-1)
+    ax.axhline(.5, ls=':', color=[.2, .2, .2], lw=.5)
+
+ax.set(ylim=[-.1, 1.1], xlabel=labes[METRIC], ylabel='p(R)')
+f.suptitle(f'p(R) on first trial as a function of {METRIC} of exploration')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'p(R) first trial vs EXPLORATION {METRIC}'), svg=True)
+
 
 
 # %%

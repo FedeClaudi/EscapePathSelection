@@ -6,7 +6,6 @@ def get_maze_explorations(maze_design, naive=None, lights=None):
     query = Explorations * Session * Session.Metadata * Session.Shelter  - 'experiment_name="Foraging"' 
     
     query = (query & "maze_type={}".format(maze_design))
-    print(query)
     if naive is not None: query = (query & "naive={}".format(naive))
     if lights is not None: query = (query & "lights={}".format(lights))
 

@@ -371,7 +371,8 @@ class Explorations(dj.Imported):
 
 		# Get session's recording
 		recs = (Recording & key).fetch("recording_uid")
-		if not np.any(recs): return
+		if not np.any(recs): 
+			return
 
 		# Get the first stimulus of the session
 		recs_lengs = []
