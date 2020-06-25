@@ -32,9 +32,9 @@ maze_colors = {
 
 palette = makePalette(teal, lilla, 4, False)
 arms_colors = {
-    "left": teal,
-    'center': darkcyan,
-    "right": lilla,
+    "left": seagreen,
+    'center': salmon,
+    "right": darkseagreen,
 }
 
 
