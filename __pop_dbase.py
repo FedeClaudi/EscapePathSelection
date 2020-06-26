@@ -93,5 +93,4 @@ def populate_sessions_table():
 
 
 if __name__ == "__main__":
-    Stimuli.populate(display_progress=True)
-    TrackingData.populate(display_progress=True)
+    Trials.populate(display_progress=True, suppress_errors=True)

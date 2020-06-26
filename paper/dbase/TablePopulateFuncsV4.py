@@ -27,6 +27,7 @@ from paper.dbase.utils import (
 		get_roi_at_each_frame,
 		correct_tracking_data,
 		correct_tracking_data,
+		load_visual_stim_log,
 		)
 from paper.dbase.toolbox import ToolBox
 from paper.dbase.ccm import run as get_matrix
@@ -342,7 +343,7 @@ def make_stimuli_table(table, key):
 		except:
 			print("could not find videofile for ", key)
 			return
-		nframes, width, height, fps, is_color = get_video_params(videofile)
+		fps = 40
 
 		# Get feather file 
 		aifile =(Recording.FilePaths & key).fetch1("ai_file_path")
@@ -440,26 +441,30 @@ def make_stimuli_table(table, key):
 			n_audio_stimuli = len(stimuli)
 
 			# Get the stimuli start and ends from the LDR AI signal
-			ldr_signal = tdms_df["/'LDR_signal_AI'/'0'"].values
-			ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
+			ldr_signal = tdms_df.objects["/'LDR_signal_AI'/'0'"]._data
+			try:
+				ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
+			except:
+				print('failed... ', key)
+				return
 			
 			# # Get the metadata about the stimuli from the log.yml file
-			# log_stimuli = load_visual_stim_log(visual_log_file)
+			log_stimuli = load_visual_stim_log(visual_log_file)
 
-			# try:
-			# 	if len(ldr_stimuli) != len(log_stimuli): 
-			# 		if len(ldr_stimuli) < len(log_stimuli):
-			# 			warnings.warn("Something weird going on, ignoring some of the stims on the visual stimuli log file")
-			# 			log_stimuli = log_stimuli.iloc[np.arange(0, len(ldr_stimuli))]
-			# 		else:
-			# 			raise ValueError("Something went wrong with stimuli detection")
-			# except:
-			# 	return
+			try:
+				if len(ldr_stimuli) != len(log_stimuli): 
+					if len(ldr_stimuli) < len(log_stimuli):
+						warnings.warn("Something weird going on, ignoring some of the stims on the visual stimuli log file")
+						log_stimuli = log_stimuli.iloc[np.arange(0, len(ldr_stimuli))]
+					else:
+						raise ValueError("Something went wrong with stimuli detection")
+			except:
+				return
 
 			# Add the start time (in seconds) and end time of each stim to log_stimuli df
 			log_stimuli['start_time'] = [s.start/table.sampling_rate for s in ldr_stimuli]
 			log_stimuli['end_time'] = [s.end/table.sampling_rate for s in ldr_stimuli]
-			log_stimuli['duration'] = log_stimuli['end_time'] - log_stimuli['start_time']
+			log_stimuli['duration'] = -1
 
 			# Insert the stimuli into the table, these will be used to populate the metadata table separately
 			for stim_n, stim in log_stimuli.iterrows():

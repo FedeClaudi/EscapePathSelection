@@ -2,6 +2,28 @@ from fcutils.file_io.io import load_yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pandas as pd
+
+
+def load_visual_stim_log(path):
+    if not os.path.isfile(path): raise FileExistsError("Couldnt find log file: ", path)
+    
+    try: 
+        log = load_yaml(path)
+    except:
+        raise ValueError("Could not load: ", path)
+
+    # Transform the loaded data into a dict that can be used for creating a df
+    temp_d = {k:[] for k in log[list(log.keys())[0]]}
+
+    for stim_i in sorted(log.keys()):
+        for k in temp_d.keys():
+            try:
+                val = float(log[stim_i][k])
+            except:
+                val = log[stim_i][k]
+            temp_d[k].append(val)
+    return pd.DataFrame.from_dict(temp_d).sort_values("stim_count")
 
 # For manual tables
 def insert_entry_in_table(dataname, checktag, data, table, overwrite=False):
