@@ -15,6 +15,9 @@ import os
 from math import sqrt
 import statsmodels.api as sm
 
+from sklearn.model_selection import train_test_split
+
+
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
@@ -35,7 +38,7 @@ from paper.helpers.mazes_stats import get_mazes, get_euclidean_dist_for_dataset
 print("Loading data")
 params = dict(
     naive = None,
-    lights = 1, 
+    lights = None,
     tracking = 'all'
 )
 
@@ -66,7 +69,7 @@ except Exception as e:
 print("Mazes stats")
 _mazes = get_mazes()
 
-euclidean_dists = get_euclidean_dist_for_dataset(trials.datasets, trials.shelter_location)
+euclidean_dists, _, _ = get_euclidean_dist_for_dataset(trials.datasets, trials.shelter_location)
 mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
 
 mazes_stats = pd.DataFrame(dict(
@@ -192,6 +195,77 @@ ax.set(title="Logistic model predicting p(R) based on euclidean and geodesic rat
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f'GLM_pR_prediction'), svg=True)
 
+
+
+# %%
+"""
+    Fit GLM on each mouse?
+
+    for each session get p(R) (from bayes) and ratios -> 
+    predict p(R) with GLM
+"""
+data = dict(
+    maze = [],
+    geodesic_ratio = [],
+    euclidean_ratio = [],
+    pr = [],
+)
+
+for i, ds in hierarchical_pRs.iterrows():
+    geo = mazes_stats.loc[mazes_stats.maze == ds.dataset].geodesic_ratio.values[0]
+    euc = mazes_stats.loc[mazes_stats.maze == ds.dataset].euclidean_ratio.values[0]
+    for pr in ds.means:
+        data['maze'].append(ds.dataset)
+        data['geodesic_ratio'].append(geo)
+        data['euclidean_ratio'].append(euc)
+        data['pr'].append(pr)
+
+data = pd.DataFrame(data)
+data.head()
+
+
+# %%
+
+
+# Fit model
+X = data[['maze', 'geodesic_ratio', 'euclidean_ratio']]
+X = sm.add_constant(X, prepend=False)
+Y = data[['pr']]
+
+xtrain, xtest, ytrain, ytest = train_test_split(X, Y, test_size=.33)
+
+if len(xtest.maze.unique()) < 5 or len(xtrain.maze.unique()) < 5:
+    raise ValueError('Wish I had more data man')
+
+xtrain = xtrain.drop(columns='maze')
+testmaze = xtest.maze.values
+xtest = xtest.drop(columns='maze')
+
+
+glm_binom = sm.GLM(ytrain, xtrain[['geodesic_ratio', 'euclidean_ratio', 'const']], family=sm.families.Binomial())
+res = glm_binom.fit()
+res.summary()
+
+
+f, ax = plt.subplots(figsize=(12, 12))
+
+for maze, pr, prhat in zip(testmaze, ytest.pr, res.predict(xtest[['geodesic_ratio', 'euclidean_ratio', 'const']])):
+    ax.scatter(pr, prhat, 
+                        color=paper.maze_colors[maze], 
+                        s=200, zorder=1, ec='k')
+
+
+ax.plot([0, 1], [0, 1], zorder=-1, ls=':', color=[.6, .6, .6])
+
+for i, row in grouped_pRs.iterrows():
+    vline_to_point(ax, row['mean'], row['mean'], color=paper.maze_colors[row.dataset], zorder=-1)
+
+
+ax.set(xlabel='Actual p(R)', ylabel='predicted p(R)')
+clean_axes(f)
+
+save_figure(f, os.path.join(paths.plots_dir, 'GLM_mice_crossval'))
+# %%
 
 
 # %%

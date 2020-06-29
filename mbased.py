@@ -103,25 +103,49 @@ sessions = list(set((Session  & "experiment_name='Model Based V2'").fetch('sessi
 explorations = pd.DataFrame((Explorations * Session * Session.Metadata & "experiment_name='Model Based V2'").fetch())
 
 stimuli = {s:(Session * Stimuli & f'session_name="{s}"').fetch('overview_frame') for s in sessions}
+tloader = TrialsLoader(experiment_name='Model Based', tracking='all')
+trials = tloader.load_trials_by_condition()
+# import time
+# from collections import namedtuple
+# from tqdm import tqdm 
 
-tracking = {s:pd.DataFrame((Session * TrackingData.BodyPartData 
-                        & f'session_name="{s}"' & "bpname='body'").fetch()) for s in sessions}
+# tr = namedtuple('tracking', 'x, y')
 
+# tracking = {}
+# for sess in tqdm(sessions):
+#     x = (Session * TrackingData.BodyPartData & f'session_name="{sess}"'
+#                          & "bpname='body'"  & "experiment_name='Model Based V2'").fetch('x')
+#     time.sleep(2)
+#     y = (Session * TrackingData.BodyPartData & f'session_name="{sess}"'
+#                          & "bpname='body'"  & "experiment_name='Model Based V2'").fetch('y')
 
+#     print(x, y)
+#     if len(x) == 0 or len(y) == 0:
+#         raise ValueError()
+
+#     time.sleep(2)
+#     tracking[sess] = tr(x, y)
+     
 
 
 # %%
 # Plot all explorations and trials
+fps = 40
+nsec = 12
+
+
 f, axarr = plt.subplots(ncols=6, nrows=4, figsize=(20, 12), sharex=True, sharey=True)
 
 for ax, (i, exp) in zip(axarr.flat, explorations.iterrows()):
     ax.plot(exp.body_tracking[:, 0], exp.body_tracking[:, 1], lw=1, color=[.6, .6, .6])
 
-    trs = trials.loc[trials.session_name == exp.session_name]
-    for i, trial in trs.iterrows():
-        ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], color=paper.arms_colors[trial.escape_arm])
+    sess = exp.session_name
+    for stim in stimuli[sess]:
+        s, e = stim, stim + (nsec * fps)
+        ax.plot(tracking[sess].x[s:e], tracking[sess].y[s:e], 
+                            color=paper.arms_colors[trial.escape_arm])
 
-    ax.set(title=exp.session_name)
+    ax.set(title=sess)
 
 
 # %%
