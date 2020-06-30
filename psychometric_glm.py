@@ -14,7 +14,9 @@ import pandas as pd
 import os
 from math import sqrt
 import statsmodels.api as sm
-
+from tqdm import tqdm
+from random import sample
+from sklearn.metrics import mean_squared_error 
 from sklearn.model_selection import train_test_split
 
 
@@ -75,7 +77,8 @@ mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
 mazes_stats = pd.DataFrame(dict(
     maze = list(mazes.keys()),
     geodesic_ratio = [v['ratio'] for v in mazes.values()],
-    euclidean_ratio = list(euclidean_dists.values(),)
+    euclidean_ratio = list(euclidean_dists.values()),
+    angles_ratio = [m['left_path_angle']/m['right_path_angle'] for m in mazes.values()]
 ))
 mazes_stats
 
@@ -274,10 +277,11 @@ save_figure(f, os.path.join(paths.plots_dir, 'GLM_mice_crossval'))
 # ---------------------------------------------------------------------------- #
 """
     FIT BERNOULLI GLM ON ALL TRIALS
+        at each iteration draw a random sample of trials to train on, 
+        get p(R) for ecah maze for the train and test sets, 
+        train to predict p(R) from maze on train and evaluate on test.
 """
-from random import sample
-from tqdm import tqdm
-from sklearn.metrics import mean_squared_error 
+predictors = ['geodesic_ratio', 'angles_ratio', 'euclidean_ratio']
 
 # ----------------------- Get a DF with all the trials ----------------------- #
 data = {'outcome':[], 'maze':[]}
@@ -295,9 +299,11 @@ ntrials = len(data)
 
 
 # ------------------------------ iterate N times ----------------------------- #
+coeffs = {pred: [] for pred in predictors}
+coeffs['const'] = []
 TRUE, PREDICTION = [], []
 f, ax = plt.subplots(figsize=(10, 10))
-for i in tqdm(np.arange(1000)):
+for i in tqdm(np.arange(500)):
     # Split train/test
     trainidx = sample(list(np.arange(ntrials)), int(ntrials * .66))
     testidx = [i for i in np.arange(ntrials) if i not in trainidx]
@@ -306,8 +312,8 @@ for i in tqdm(np.arange(1000)):
     test = data.iloc[testidx]
 
     # ----------------------- Summarise data for train/test ---------------------- #
-    train_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[]}
-    test_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[]}
+    train_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[], 'angles_ratio':[]}
+    test_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[], 'angles_ratio':[]}
 
     for maze in trials.datasets.keys():
         tr = train.loc[train.maze == maze]
@@ -315,28 +321,30 @@ for i in tqdm(np.arange(1000)):
 
         geo = mazes_stats.loc[mazes_stats.maze == maze].geodesic_ratio.values[0]
         euc = mazes_stats.loc[mazes_stats.maze == maze].euclidean_ratio.values[0]
+        ang = mazes_stats.loc[mazes_stats.maze == maze].angles_ratio.values[0]
 
         train_data['maze'].append(maze)
         train_data['pr'].append(tr.outcome.sum() / len(tr))
         train_data['geodesic_ratio'].append(geo)
         train_data['euclidean_ratio'].append(euc)
+        train_data['angles_ratio'].append(ang)
 
 
         test_data['maze'].append(maze)
         test_data['pr'].append(te.outcome.sum() / len(te))
         test_data['geodesic_ratio'].append(geo)
         test_data['euclidean_ratio'].append(euc)
+        test_data['angles_ratio'].append(ang)
         
     test = pd.DataFrame(test_data)
     train = pd.DataFrame(train_data)
 
-
     # ------------------------------------ Fit ----------------------------------- #
-    exog = train[['geodesic_ratio', 'euclidean_ratio']]
+    exog = train[predictors]
     exog = sm.add_constant(exog, prepend=False)
     endog = train[['pr']]
 
-    testexog = test[['geodesic_ratio', 'euclidean_ratio']]
+    testexog = test[predictors]
     testexog = sm.add_constant(testexog, prepend=False)
 
     glm_binom = sm.GLM(endog, exog, family=sm.families.Binomial())
@@ -350,6 +358,9 @@ for i in tqdm(np.arange(1000)):
     TRUE.extend(list(test.pr))
     PREDICTION.extend(list(res.predict(testexog)))
 
+    for par, val in res.params.iteritems():
+        coeffs[par].append(val)
+
 ax.plot([0, 1], [0, 1], ls='--', color=[.8, .8, .8], zorder=-1)
 
 for i, row in grouped_pRs.iterrows():
@@ -362,18 +373,30 @@ for i, row in grouped_pRs.iterrows():
     ax.text(row['mean'], -.03, row.dataset.replace('maze', 'M'), 
                     fontsize=14, horizontalalignment='center')
 
-ax.set(title='test set predictions', xlabel='actual p(R)', ylabel='predicted p(R)')
+
+mse = round(mean_squared_error(TRUE, PREDICTION), 4)
+ax.set(title=f'test set predictions [mse: {mse}]\n predictors: {predictors}', xlabel='actual p(R)', ylabel='predicted p(R)')
 clean_axes(f)
 
 save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval'))
 
-# %%
-mean_squared_error(TRUE, PREDICTION)
+
+# ---------------------------- Plot coeffs spread ---------------------------- #
+
+f, ax = plt.subplots()
+for coeff, vals in coeffs.items():
+    ax.hist(vals, label=coeff)
+ax.legend()
+
+ax.set(title='GLM coefficients', xlabel='value', ylabel='count')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval_coefffs'))
+
 
 # %%
 f, ax = plt.subplots()
+ax.scatter(mazes_stats.euclidean_ratio, mazes_stats.geodesic_ratio)
 
-bins = ax.hist(TRUE, density=True, bins=50, alpha=.5)
-bins = ax.hist(PREDICTION, density=True, bins=bins[1], alpha=.5)
 
 # %%
