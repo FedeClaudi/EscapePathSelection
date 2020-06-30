@@ -265,7 +265,115 @@ ax.set(xlabel='Actual p(R)', ylabel='predicted p(R)')
 clean_axes(f)
 
 save_figure(f, os.path.join(paths.plots_dir, 'GLM_mice_crossval'))
-# %%
 
+
+
+# %%
+# ---------------------------------------------------------------------------- #
+#                               FIT ON ALL TRIALS                              #
+# ---------------------------------------------------------------------------- #
+"""
+    FIT BERNOULLI GLM ON ALL TRIALS
+"""
+from random import sample
+from tqdm import tqdm
+from sklearn.metrics import mean_squared_error 
+
+# ----------------------- Get a DF with all the trials ----------------------- #
+data = {'outcome':[], 'maze':[]}
+for maze, trs in trials.datasets.items():
+    trs = trs.loc[trs.escape_arm != 'center']
+
+    for i, trial in trs.iterrows():
+        if trial.escape_arm == 'left':
+            data['outcome'].append(0)
+        else:
+            data['outcome'].append(1)
+        data['maze'].append(maze)
+data = pd.DataFrame(data)
+ntrials = len(data)
+
+
+# ------------------------------ iterate N times ----------------------------- #
+TRUE, PREDICTION = [], []
+f, ax = plt.subplots(figsize=(10, 10))
+for i in tqdm(np.arange(1000)):
+    # Split train/test
+    trainidx = sample(list(np.arange(ntrials)), int(ntrials * .66))
+    testidx = [i for i in np.arange(ntrials) if i not in trainidx]
+
+    train = data.iloc[trainidx]
+    test = data.iloc[testidx]
+
+    # ----------------------- Summarise data for train/test ---------------------- #
+    train_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[]}
+    test_data = {'maze':[], 'pr':[], 'geodesic_ratio':[], 'euclidean_ratio':[]}
+
+    for maze in trials.datasets.keys():
+        tr = train.loc[train.maze == maze]
+        te = test.loc[test.maze == maze]
+
+        geo = mazes_stats.loc[mazes_stats.maze == maze].geodesic_ratio.values[0]
+        euc = mazes_stats.loc[mazes_stats.maze == maze].euclidean_ratio.values[0]
+
+        train_data['maze'].append(maze)
+        train_data['pr'].append(tr.outcome.sum() / len(tr))
+        train_data['geodesic_ratio'].append(geo)
+        train_data['euclidean_ratio'].append(euc)
+
+
+        test_data['maze'].append(maze)
+        test_data['pr'].append(te.outcome.sum() / len(te))
+        test_data['geodesic_ratio'].append(geo)
+        test_data['euclidean_ratio'].append(euc)
+        
+    test = pd.DataFrame(test_data)
+    train = pd.DataFrame(train_data)
+
+
+    # ------------------------------------ Fit ----------------------------------- #
+    exog = train[['geodesic_ratio', 'euclidean_ratio']]
+    exog = sm.add_constant(exog, prepend=False)
+    endog = train[['pr']]
+
+    testexog = test[['geodesic_ratio', 'euclidean_ratio']]
+    testexog = sm.add_constant(testexog, prepend=False)
+
+    glm_binom = sm.GLM(endog, exog, family=sm.families.Binomial())
+    res = glm_binom.fit()
+
+    # Plot predictions
+    ax.scatter(train.pr, res.predict(exog), color=[.4, .4, .4], alpha=.8)
+    ax.scatter(test.pr, res.predict(testexog), zorder=99,
+            c=[paper.maze_colors[m] for m in trials.datasets.keys()], alpha=.6)
+
+    TRUE.extend(list(test.pr))
+    PREDICTION.extend(list(res.predict(testexog)))
+
+ax.plot([0, 1], [0, 1], ls='--', color=[.8, .8, .8], zorder=-1)
+
+for i, row in grouped_pRs.iterrows():
+    vline_to_point(ax, row['mean'], row['mean'], color=paper.maze_colors[row.dataset], zorder=-1)
+    ax.scatter(row['mean'], row['mean'], color='white',  alpha=1,
+                        lw=1, s=150, ec='w', zorder=101)
+    ax.scatter(row['mean'], row['mean'], color=desaturate_color(paper.maze_colors[row.dataset]), 
+                        lw=1, s=100, ec=[.2, .2, .2], zorder=101)
+
+    ax.text(row['mean'], -.03, row.dataset.replace('maze', 'M'), 
+                    fontsize=14, horizontalalignment='center')
+
+ax.set(title='test set predictions', xlabel='actual p(R)', ylabel='predicted p(R)')
+clean_axes(f)
+
+save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval'))
+
+# %%
+mean_squared_error(TRUE, PREDICTION)
+
+# %%
+f, ax = plt.subplots()
+
+bins = ax.hist(TRUE, density=True, bins=50, alpha=.5)
+bins = ax.hist(PREDICTION, density=True, bins=bins[1], alpha=.5)
 
 # %%
