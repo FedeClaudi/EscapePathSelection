@@ -5,6 +5,9 @@ if sys.platform == 'darwin':
     cache_dir = "/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/Writings/BehavPaper/cache"
     flip_flop_metadata_dir = "/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/flipflop"
     shortcut_notes = "/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/analysis_metadata/shortctu/notes.yml"
+
+    mice_records = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/FC_animals_records.xlsx'
+    exp_records = '/Users/federicoclaudi/Dropbox (UCL - SWC)/Rotation_vte/datalog.xlsx'
 else:
 
     # ------------------------------- dbase filling ------------------------------ #
