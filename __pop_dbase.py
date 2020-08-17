@@ -93,4 +93,12 @@ def populate_sessions_table():
 
 
 if __name__ == "__main__":
-    Trials.populate(display_progress=True, suppress_errors=True)
+    # populate_mice_table()
+    # populate_sessions_table()
+
+    # MazeComponents.populate(display_progress=True)
+    Recording.populate(display_progress=True)
+    CCM.populate(display_progress=True)
+
+
+    # Trials.populate(display_progress=True, suppress_errors=True)

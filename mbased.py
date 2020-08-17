@@ -276,18 +276,30 @@ res = proportions_chisquare_allpairs(np.array([numbers['baseline']['sides'], num
 Looking at Model Based V3
 """
 
+# TODO make notes for V3 and repeat analysis from above   
+
 sessions = list(set((Session  & "experiment_name='Model Based V3'").fetch('session_name')))
 explorations = pd.DataFrame((Explorations * Session * Session.Metadata & "experiment_name='Model Based V3'").fetch())
 stimuli = {s:(Session * Stimuli & f'session_name="{s}"').fetch('overview_frame') for s in sessions}
 
-tracking = pd.DataFrame((Session * TrackingData * TrackingData.BodyPartData
-                    & "bpname='body'").fetch())
+tracking = pd.read_hdf(os.path.join(paths.cache_dir, 'mbv3tracking.h5'), key='hdf')
+tracking.index = tracking.session_name
+
 
 
 # %%
+fps, nsec = 40, 20
+
 f, axarr = plt.subplots(ncols=5, nrows=2, figsize=(22, 12))
 
 
 for ax, (i, exp) in zip(axarr.flat, explorations.iterrows()):
-    print(exp)
+    sess = exp.session_name
+    trk = tracking.loc[sess]
+
     ax.plot(exp.body_tracking[:, 0], exp.body_tracking[:, 1], lw=1, color=[.8, .8, .8])
+
+    for stim in stimuli[sess]:
+        ax.plot(trk.x[stim:stim+(fps*nsec)], trk.y[stim:stim+(fps*nsec)], color=salmon)
+
+
