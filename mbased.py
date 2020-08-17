@@ -99,10 +99,20 @@ sessions = list(set((Session  & "experiment_name='Model Based V2'").fetch('sessi
 explorations = pd.DataFrame((Explorations * Session * Session.Metadata & "experiment_name='Model Based V2'").fetch())
 
 stimuli = {s:(Session * Stimuli & f'session_name="{s}"').fetch('overview_frame') for s in sessions}
+tloader = TrialsLoader(experiment_name='Model Based', tracking='all')
+trials = tloader.load_trials_by_condition()
+# import time
+# from collections import namedtuple
+# from tqdm import tqdm 
+
+# tr = namedtuple('tracking', 'x, y')
 
 tloader = TrialsLoader(experiment_name='Model Based V2', tracking='all', escapes_dur = False)
 trials = tloader.load_trials_by_condition()
 
+#     print(x, y)
+#     if len(x) == 0 or len(y) == 0:
+#         raise ValueError()
 
 tracking = pd.read_hdf(os.path.join(paths.cache_dir, 'mbv2tracking.h5'), key='hdf')
 tracking.index = tracking.session_name

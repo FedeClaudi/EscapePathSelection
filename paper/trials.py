@@ -175,8 +175,10 @@ class TrialsLoader(Bayes):
     # ---------------------------------------------------------------------------- #
 
     def get_binary_trials_per_dataset(self, datasets=None, ignore_center=True):
-        # ? datasets should be a dict whose keys should be a list of strings with the names of the different datasets to be modelled
-        # ? the values of datasets should be a a list of dataframes, each specifying the trials for one dataset (e.g. maze design) and the session they belong to
+        # ? datasets should be a dict whose keys should be a \
+        #       list of strings with the names of the different datasets to be modelled
+        # ? the values of datasets should be a a list of dataframes, 
+        #           each specifying the trials for one dataset (e.g. maze design) and the session they belong to
 
         if datasets is None: datasets = self.datasets
 
@@ -187,7 +189,8 @@ class TrialsLoader(Bayes):
             sessions = sorted(set(df.uid.values))
             for sess in sessions:
                 df = df.loc[df.escape_arm != "center"]
-                trs[dataset].append([1 if "right" in arm.lower() else 0 for arm in df.loc[df.uid==sess].escape_arm.values])
+                trs[dataset].append([1 if "right" in arm.lower() else 0 
+                            for arm in df.loc[df.uid==sess].escape_arm.values])
 
         # Get hits and number of trials
         hits = {c:[np.sum(t2) for t2 in t] for c, t in trs.items()}
