@@ -140,7 +140,11 @@ def fill_in_recording_paths(recordings):
 		if record_uid in recs_in_part_table: continue  # ? its already in table
 
 		try:
-			key['overview_video'] = [v for v in videos if record_uid in v and "Threat" not in v and "tdms" not in v][0]
+			rvids = [v for v in videos if record_uid in v and "Threat" not in v and "tdms" not in v]
+			if rvids:
+				key['overview_video'] = rvids[0]
+			else:
+				key['overview_video'] = 'not_found'
 			key['overview_pose'] = [v for v in poses if record_uid in v and "_pose" in v and ".h5" in v and "Threat" not in v][0]
 		except:
 			if record_uid[-1] == "1":
@@ -165,20 +169,11 @@ def fill_in_recording_paths(recordings):
 		if "Overview" not in key['overview_pose']:
 			if record_uid[-1] != key["overview_pose"].split("_pose")[0][-1]: 
 				print("Something went wrong: ", key)
-				# continue # ! re,pve this
-				raise ValueError(key)
+				continue # ! re,pve this
+				# raise ValueError(key)
 
-		threat_vids = [v for v in videos if key['recording_uid'] in v and "Overview" in v and "mp4" in v]
-		if not threat_vids:
-			key['threat_video'] = ""
-		else:
-			key['threat_video'] = threat_vids[0]
-
-		threat_poses = [v for v in poses if key['recording_uid'] in v and "_pose" in v and ".h5" in v and "Overview" in v]
-		if not threat_poses:
-			key['threat_pose'] = ""
-		else:
-			key["threat_pose"] = threat_poses[0]
+		key['threat_video'] = ""
+		key['threat_pose'] = ""
 
 		visual_stim_logs = [v for v in ais if key['recording_uid'] in v and "visual_stimuli_log" in v]
 		if not visual_stim_logs:
@@ -230,10 +225,6 @@ def make_commoncoordinatematrices_table(table, key):
 
 	from paper.dbase.TablesDefinitionsV4 import Recording, Session
 
-	"""make_commoncoordinatematrices_table [Allows user to align frame to model
-	and stores transform matrix for future use]
-
-	"""
 	# Get the maze model template according to the experiment being processed
 	if int(key["uid"]<248) or int(key["uid"]>301):
 		old_mode = True
@@ -244,28 +235,49 @@ def make_commoncoordinatematrices_table(table, key):
 	maze_model = cv2.resize(maze_model, (1000, 1000))
 	maze_model = cv2.cvtColor(maze_model, cv2.COLOR_RGB2GRAY)
 
-	# Get path to video of first recording
-	try:
-		videopath = (Recording.FilePaths & key).fetch("overview_video")[0]
-	except:
-		print("While populating CCM, could not find video, make sure to run recording.make_paths\n ", key)
-		warnings.warn("did not pupulate CCM for : {}".format(key))
-		return
+	# ? try to load a matri, if not compute it
+	mtxfile = [f for f in os.listdir(paths.commoncoordinatebehaviourmatrices) if key['session_name'] in f]
+	if mtxfile:
+		matrix = np.load(os.path.join(paths.commoncoordinatebehaviourmatrices, mtxfile[0]), allow_pickle=True)[0]
+		points = np.zeros(6)
+		top_pad = -1
+		side_pad = -1
+	else:
+
+		"""make_commoncoordinatematrices_table [Allows user to align frame to model
+		and stores transform matrix for future use]
+
+		"""
+
+
+		# Get path to video of first recording
+		try:
+			videopath = (Recording.FilePaths & key).fetch("overview_video")[0]
+		except:
+			try:
+				vidfld = os.path.join(paths.raw_data_folder, paths.raw_video_folder)
+				vid = [f for f in os.listdir(vidfld) 
+								if key['session_name'] in f][0]
+				videopath = os.path.join(vidfld, vid)
+			except:
+				print("While populating CCM, could not find video, make sure to run recording.make_paths\n ", key)
+				warnings.warn("did not pupulate CCM for : {}".format(key))
+				return
+				
+		if not videopath: 
+			print("While populating CCM, could not find video, make sure to run recording.make_paths   \n", videopath)
+			return
+
+		# Apply the transorm [Call function that prepares data to feed to Philip's function]
+		""" 
+			The correction code is from here: https://github.com/BrancoLab/Common-Coordinate-Behaviour
+		"""
 		
-	if not videopath: 
-		print("While populating CCM, could not find video, make sure to run recording.make_paths   \n", videopath)
-		return
-
-	# Apply the transorm [Call function that prepares data to feed to Philip's function]
-	""" 
-		The correction code is from here: https://github.com/BrancoLab/Common-Coordinate-Behaviour
-	"""
-
-	matrix, points, top_pad, side_pad = get_matrix(videopath, maze_model=maze_model, old_mode=old_mode)
-	if matrix is None:   # somenthing went wrong and we didn't get the matrix
-		# Maybe the videofile wasn't there
-		print('Did not extract matrix for video: ', videopath)
-		return
+		matrix, points, top_pad, side_pad = get_matrix(videopath, maze_model=maze_model, old_mode=old_mode)
+		if matrix is None:   # somenthing went wrong and we didn't get the matrix
+			# Maybe the videofile wasn't there
+			print('Did not extract matrix for video: ', videopath)
+			return
 
 	# Return the updated key
 	key['maze_model'] 			= maze_model
@@ -337,16 +349,21 @@ def make_stimuli_table(table, key):
 			ax.set(xlim=[stim_start_times[0]-5000, stim_start_times[0]+5000])
 
 		# Get the FPS for the overview video
-		try:
-			videofile = (Recording.FilePaths & key).fetch1("overview_video")
-			if not os.path.isfile(videofile): raise FileExistsError
-		except:
-			print("could not find videofile for ", key)
-			return
+		# try:
+		# 	videofile = (Recording.FilePaths & key).fetch1("overview_video")
+		# 	if not os.path.isfile(videofile): raise FileExistsError
+		# except:
+		# 	print("could not find videofile for ", key)
+			# return-
 		fps = 40
 
 		# Get feather file 
-		aifile =(Recording.FilePaths & key).fetch1("ai_file_path")
+		try:
+			aifile =(Recording.FilePaths & key).fetch1("ai_file_path")
+		except:
+			print(f'No AI file found for recording, skipping. {key}')
+			return
+			
 		fld, ainame = os.path.split(aifile)
 		ainame = ainame.split(".")[0]
 		feather_file = os.path.join(fld, "as_pandas", ainame+".ft")
@@ -633,7 +650,12 @@ def make_trackingdata_table(table, key):
 		try:
 			corrected_data = correct_tracking_data(xy, ccm['correction_matrix'][0], ccm['top_pad'][0], ccm['side_pad'][0], experiment, key['uid'])
 		except:
-			raise ValueError("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {}".format(key))
+			print("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {}".format(key))
+			yn = input('Continnue? [y/n]  ')
+			if yn.lower() == 'y': 
+				return
+			else:
+				raise ValueError("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {}".format(key))
 		corrected_data = pd.DataFrame.from_dict({'x':corrected_data[:, 0], 'y':corrected_data[:, 1]})
 
 		# get speed

@@ -89,8 +89,9 @@ class ToolBox:
 
         self.tracked_data_folder = paths.tracked_data_folder
 
-        self.analog_input_folder = os.path.join(paths.raw_data_folder, 
-                                                paths.raw_analoginput_folder)
+        self.analog_input_folder = paths.raw_ai_folder
+        # os.path.join(paths.raw_data_folder, 
+        #                                         paths.raw_analoginput_folder)
                                                 
         self.pose_folder = paths.tracked_data_folder
 

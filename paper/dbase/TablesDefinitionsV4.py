@@ -371,7 +371,8 @@ class Explorations(dj.Imported):
 
 		# Get session's recording
 		recs = (Recording & key).fetch("recording_uid")
-		if not np.any(recs): 
+		if not np.any(recs):
+			print('skipping no recs') 
 			return
 
 		# Get the first stimulus of the session
@@ -383,6 +384,7 @@ class Explorations(dj.Imported):
 			if first_stim: break
 			rec_n += 1
 			if rec_n == len(recs):
+				print('skipping no stims')
 				return # ! no stimuli for that session
 		
 		# Get comulative frame numbers and concatenated tracking
@@ -392,6 +394,7 @@ class Explorations(dj.Imported):
 			try:
 				trk = (TrackingData * TrackingData.BodyPartData & key & f"recording_uid='{rec}'" & "bpname='body'").fetch("tracking_data")[0]
 			except:
+				print('skipping something went wrong')
 				return
 			n_frames.append(trk.shape[0])
 			trackings.append(trk)

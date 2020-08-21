@@ -47,7 +47,7 @@ def get_session_time_on_arms(exploration, normalize = False, maze=None):
     on_right /= tot
 
 
-    # NOrmalize
+    # Normalize
     if normalize: 
         metadata = get_mazes()[f'maze{maze}']
         ratio = metadata['right_path_length'] / metadata['left_path_length']
@@ -68,7 +68,7 @@ NORMALIZE = True
 f, axarr = plt.subplots(ncols = len(mazes), figsize=(30, 8))
 
 for maze, ax in zip(mazes, axarr):
-    explorations = get_maze_explorations(maze,  naive=None, lights=1)
+    explorations = get_maze_explorations(maze,  naive=None, lights=None)
 
     occupancy = []
 
