@@ -127,7 +127,7 @@ for n, maze in enumerate(mazes):
         )
         
         for start, end in zip(l_starts, l_ends):
-            if end - start < 100: continue
+            if end - start < 50: continue
             if tracking[start, 1]  > 500:
                 n_trips['left']['outward'] += 1
             else:
@@ -443,3 +443,34 @@ _ =axarr[1].set(title='Number of trips per arm', ylabel='# trips per arm',  xtic
 
 clean_axes(f)
 save_figure(f, os.path.join(plots_dir, f"trips per path per maze"))
+
+# %%
+"""
+    Plot explorations occupancies as heatmaps
+"""
+
+f, axarr = plt.subplots(nrows=2, ncols=3, figsize=(12, 8), sharex=True, sharey=True)
+axarr = axarr.flatten()
+
+for n, maze in enumerate(mazes):
+    explorations = get_maze_explorations(maze,  naive=None, lights=1)
+
+    X = np.hstack([r.body_tracking[:, 0] for i,r in explorations.iterrows()])
+    Y = np.hstack([r.body_tracking[:, 1] for i,r in explorations.iterrows()])
+    in_shelt = np.hstack([r.maze_roi for i,r in explorations.iterrows()])
+
+    Y = Y[(X < 440)|(X > 560)]    
+    X = X[(X < 440)|(X > 560)]
+
+    xbins = int((np.max(X) - np.min(X))/25)
+    ybins = int((np.max(Y) - np.min(Y))/25)
+
+    axarr[n].hexbin(X, Y, mincnt=20, cmap='Blues', gridsize = (xbins, ybins), bins='log')
+
+    axarr[n].set(title='Maze_'+str(maze), xlim=[50, 950], ylim=[250, 750], xticks=[], yticks=[])
+    # axarr[n].axis('off')
+    axarr[n].set_facecolor((.6, .6, .6))
+
+_ = axarr[-1].axis('off')
+clean_axes(f)
+save_figure(f, os.path.join(plots_dir, f"explorations_heatmaps"))

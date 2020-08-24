@@ -16,6 +16,9 @@ def correct_image_fisheye(img):
 
 
 def run(videopath, maze_model=None, old_mode=False):
+    if 'threat' in videopath.lower():
+        print(f'Trying to get CCM for a threat video, ignoring. {videopath}')
+        return None, None, None, None
     if maze_model is None:
         # Get the maze model template
         maze_model = cv2.imread('Utilities\\video_and_plotting\\mazemodel.png')
@@ -44,7 +47,7 @@ def run(videopath, maze_model=None, old_mode=False):
     height = int(cap.get(4))
 
     if width > 1000 or height > 1000:
-        raise ValueError('Frame too large: ', width, height)
+        raise ValueError('Frame too large: ', width, height, videopath)
     
     # Pad the background frame to be of the right size for template matching
     ret, frame = cap.read()

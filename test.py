@@ -1,3 +1,4 @@
 from paper.dbase.TablesDefinitionsV4 import *
 
-print(Session(), Recording(), TrackingData())
+# CCM.drop()
+print(TrackingData(), Trials(), Explorations(), Stimuli())

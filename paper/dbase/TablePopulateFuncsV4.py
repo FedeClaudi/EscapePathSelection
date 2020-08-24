@@ -1,6 +1,7 @@
 import sys
 sys.path.append('./')
 
+import time
 import os
 import numpy as np
 import pandas as pd
@@ -126,7 +127,7 @@ def make_recording_table(table, key):
 
 def fill_in_recording_paths(recordings):
 	# fills in FilePaths table
-	videos = 	 listdir(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
+	videos = 	 listdir(paths.raw_video_folder) # listdir(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
 	poses = 	 listdir(paths.tracked_data_folder)
 	metadatas =  listdir(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))
 	ais =		 listdir(paths.raw_ai_folder)
@@ -236,48 +237,41 @@ def make_commoncoordinatematrices_table(table, key):
 	maze_model = cv2.cvtColor(maze_model, cv2.COLOR_RGB2GRAY)
 
 	# ? try to load a matri, if not compute it
-	mtxfile = [f for f in os.listdir(paths.commoncoordinatebehaviourmatrices) if key['session_name'] in f]
-	if mtxfile:
-		matrix = np.load(os.path.join(paths.commoncoordinatebehaviourmatrices, mtxfile[0]), allow_pickle=True)[0]
-		points = np.zeros(6)
-		top_pad = -1
-		side_pad = -1
-	else:
 
-		"""make_commoncoordinatematrices_table [Allows user to align frame to model
-		and stores transform matrix for future use]
+	"""make_commoncoordinatematrices_table [Allows user to align frame to model
+	and stores transform matrix for future use]
 
-		"""
+	"""
 
 
-		# Get path to video of first recording
+	# Get path to video of first recording
+	try:
+		videopath = (Recording.FilePaths & key).fetch("overview_video")[0]
+	except:
 		try:
-			videopath = (Recording.FilePaths & key).fetch("overview_video")[0]
+			vidfld = paths.raw_video_folder # os.path.join(paths.raw_data_folder, paths.raw_video_folder)
+			vid = [f for f in os.listdir(vidfld) 
+							if key['session_name'] in f][0]
+			videopath = os.path.join(vidfld, vid)
 		except:
-			try:
-				vidfld = os.path.join(paths.raw_data_folder, paths.raw_video_folder)
-				vid = [f for f in os.listdir(vidfld) 
-								if key['session_name'] in f][0]
-				videopath = os.path.join(vidfld, vid)
-			except:
-				print("While populating CCM, could not find video, make sure to run recording.make_paths\n ", key)
-				warnings.warn("did not pupulate CCM for : {}".format(key))
-				return
-				
-		if not videopath: 
-			print("While populating CCM, could not find video, make sure to run recording.make_paths   \n", videopath)
+			print("While populating CCM, could not find video, make sure to run recording.make_paths\n ", key)
+			warnings.warn("did not pupulate CCM for : {}".format(key))
 			return
+			
+	if not videopath: 
+		print("While populating CCM, could not find video, make sure to run recording.make_paths   \n", videopath)
+		return
 
-		# Apply the transorm [Call function that prepares data to feed to Philip's function]
-		""" 
-			The correction code is from here: https://github.com/BrancoLab/Common-Coordinate-Behaviour
-		"""
-		
-		matrix, points, top_pad, side_pad = get_matrix(videopath, maze_model=maze_model, old_mode=old_mode)
-		if matrix is None:   # somenthing went wrong and we didn't get the matrix
-			# Maybe the videofile wasn't there
-			print('Did not extract matrix for video: ', videopath)
-			return
+	# Apply the transorm [Call function that prepares data to feed to Philip's function]
+	""" 
+		The correction code is from here: https://github.com/BrancoLab/Common-Coordinate-Behaviour
+	"""
+	
+	matrix, points, top_pad, side_pad = get_matrix(videopath, maze_model=maze_model, old_mode=old_mode)
+	if matrix is None:   # somenthing went wrong and we didn't get the matrix
+		# Maybe the videofile wasn't there
+		print('Did not extract matrix for video: ', videopath)
+		return
 
 	# Return the updated key
 	key['maze_model'] 			= maze_model
@@ -630,9 +624,7 @@ def make_trackingdata_table(table, key):
 		print("Could not find {}".format(pose_file))
 		return
 
-	# Insert entry into MAIN CLASS for this videofile
-	key['camera'] = 'overview' 
-	table.insert1(key)
+
 
 	# Get the scorer name and the name of the bodyparts
 	first_frame = posedata.iloc[0]
@@ -643,19 +635,24 @@ def make_trackingdata_table(table, key):
 		Loop over bodyparts and populate Bodypart Part table
 	"""
 	bp_data = {}
-	for bp in bodyparts:
+	for bpn, bp in enumerate(bodyparts):
 		if bp not in table.bodyparts: continue  # skip unwanted body parts
 		# Get XY pose and correct with CCM matrix
 		xy = posedata[scorer[0], bp].values[:, :2]
 		try:
 			corrected_data = correct_tracking_data(xy, ccm['correction_matrix'][0], ccm['top_pad'][0], ccm['side_pad'][0], experiment, key['uid'])
 		except:
-			print("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {}".format(key))
-			yn = input('Continnue? [y/n]  ')
-			if yn.lower() == 'y': 
-				return
-			else:
-				raise ValueError("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {}".format(key))
+			print("Something went wrong while trying to correct tracking data, are you sure you have the CCM for this recording? {} - skipping".format(key))
+			return
+		else:
+			# Insert entry into MAIN CLASS for this videofile
+			if bpn == 0:
+				try:
+					key['camera'] = 'overview' 
+					table.insert1(key)
+				except:
+					pass
+
 		corrected_data = pd.DataFrame.from_dict({'x':corrected_data[:, 0], 'y':corrected_data[:, 1]})
 
 		# get speed
@@ -810,6 +807,7 @@ def make_trials_table(table, key):
 	# else:
 	# 	mouse = split[-1]
 	# if key['mouse_id'] != mouse: return
+	time.sleep(1)
 
 	def get_time_at_roi(tracking, roi, frame, when="next"):
 		if when == "last":

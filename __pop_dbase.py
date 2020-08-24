@@ -2,7 +2,6 @@ import sys
 sys.path.append("../")
 
 import pyexcel
-
 from paper import paths
 from paper.dbase.TablesDefinitionsV4 import *
 from paper.dbase.utils import insert_entry_in_table
@@ -93,17 +92,20 @@ def populate_sessions_table():
 
 
 if __name__ == "__main__":
+    print('Populating.')
     # populate_mice_table()
     # populate_sessions_table()
+    
 
     # MazeComponents.populate(display_progress=True)
     # Recording.populate(display_progress=True)
     # Recording().make_paths()
     # CCM.populate(display_progress=True)
 
+
     # Stimuli.populate(display_progress=True)
     # TrackingData.populate(display_progress=True)
 
     # Explorations.populate(display_progress=True)
-    Trials.populate(display_progress=True, suppress_errors=True)
+    # Trials.populate(display_progress=True, suppress_errors=False)
 

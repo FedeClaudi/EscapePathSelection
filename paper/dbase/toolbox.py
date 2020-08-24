@@ -81,8 +81,9 @@ def load_visual_stim_log(path):
 class ToolBox:
     def __init__(self):
         # Load paths to data folders
-        self.raw_video_folder = os.path.join(
-            paths.raw_data_folder, paths.raw_video_folder)
+        self.raw_video_folder = paths.raw_video_folder
+        # self.raw_video_folder = os.path.join(
+        #     paths.raw_data_folder, paths.raw_video_folder)
 
         self.raw_metadata_folder = os.path.join(
             paths.raw_data_folder, paths.raw_metadata_folder)

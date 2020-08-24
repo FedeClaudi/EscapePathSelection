@@ -10,6 +10,7 @@ import pandas as pd
 import os
 from math import sqrt
 from scipy.signal import resample
+import random
 from brainrender.colors import colorMap
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
@@ -485,3 +486,6 @@ save_figure(f, os.path.join(paths.plots_dir, f'predict arm from theta'))
 
 
 
+
+
+# %%
