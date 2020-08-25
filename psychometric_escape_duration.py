@@ -103,6 +103,26 @@ save_figure(f2, os.path.join(paths.plots_dir, f"lowperc_escape duration ratio_by
 
 
 # %%
+"""
+    Look at distribution of out-of-T times. 
+"""
+f, ax  = plt.subplots(figsize=(16, 9))
 
+for n, (maze, trs) in enumerate(trials.datasets.items()):
+    left = trs.loc[trs.escape_arm == 'left'].time_out_of_t.mean()
+    right = trs.loc[trs.escape_arm == 'right'].time_out_of_t.mean()
 
+    lstd = trs.loc[trs.escape_arm == 'left'].time_out_of_t.std()
+    rstd = trs.loc[trs.escape_arm == 'right'].time_out_of_t.std()
+
+    ax.errorbar([n-.15, n+.15], [left, right], yerr=[lstd, rstd],  color=paper.maze_colors[maze],
+                    ms=16, lw=6, elinewidth =2)
+    ax.plot([n-.15, n+.15], [left, right], 'o-',  color=paper.maze_colors[maze],
+                    lw=6, ms=16)
+
+_ = ax.set(title='Time out of threat platform pby maze and arm', ylabel='mean duration (s)', 
+            xticks=[0, 1, 2, 3, 4,], xticklabels=[maze for maze in trials.datasets.keys()])
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"))
 # %%

@@ -25,6 +25,7 @@ from fcutils.plotting.colors import desaturate_color
 from fcutils.file_io.utils import check_create_folder
 
 from behaviour.utilities.signals import get_times_signal_high_and_low
+from paper.trials import TrialsLoader
 
 
 # %%
@@ -55,6 +56,18 @@ def get_session_time_on_arms(exploration, normalize = False, maze=None):
 
     return on_left, on_right
 
+# Load trials data
+print("Loading data")
+params = dict(
+    naive = None,
+    lights = None, 
+    tracking = 'all',
+    escapes_dur = True,
+)
+
+trials = TrialsLoader(**params)
+trials.load_psychometric()
+trials.remove_change_of_mind_trials() # remove silly trials
 
 
 # %%
@@ -387,10 +400,7 @@ for n, maze in enumerate(mazes):
     trips and arm
 """
 
-f, axarr = plt.subplots(figsize=(16, 12), nrows=2, sharex=True )
-
-
-for n, (maze, trps) in enumerate(trips.items()):
+def get_trips_means_stds(trps):
     st_l = np.mean(trps['st']['l'])
     st_r = np.mean(trps['st']['r'])
     ts_l = np.mean(trps['ts']['l'])
@@ -401,20 +411,27 @@ for n, (maze, trps) in enumerate(trips.items()):
     std_ts_l = np.std(trps['ts']['l'])
     std_ts_r = np.std(trps['ts']['r'])
 
+    # n trips per arm
+    n_st_l = len(trps['st']['l'])
+    n_st_r = len(trps['st']['r'])
+    n_ts_l = len(trps['ts']['l'])
+    n_ts_r = len(trps['ts']['r'])
+    return st_l, st_r, ts_l, ts_r, std_st_l, std_st_r, \
+                std_ts_l, std_ts_r,  n_st_l, n_st_r, n_ts_l, n_ts_r
+
+f, axarr = plt.subplots(figsize=(16, 12), nrows=2, sharex=True )
+
+
+for n, (maze, trps) in enumerate(trips.items()):
+    st_l, st_r, ts_l, ts_r, std_st_l, std_st_r, \
+                std_ts_l, std_ts_r,  n_st_l, n_st_r, n_ts_l, n_ts_r = get_trips_means_stds(trps)
+
     x = np.array([n-.15, n+.15])
     axarr[0].bar(x, [st_l, st_r], color=paper.maze_colors[maze], yerr=[std_st_l, std_st_r], width=.2, capsize =9, label='shelter -> threat')
 
     axarr[0].errorbar(x+0.05, [ts_l, ts_r], color=desaturate_color(paper.maze_colors[maze]), yerr=[std_ts_l, std_ts_r],
             ecolor=[.4, .4, .4], elinewidth=3)
     axarr[0].scatter(x+0.05, [ts_l, ts_r], color=desaturate_color(paper.maze_colors[maze]),s=250, zorder=99, ec='k', label='threat -> shelter')
-
-    
-    # n trips per arm
-    n_st_l = len(trps['st']['l'])
-    n_st_r = len(trps['st']['r'])
-    n_ts_l = len(trps['ts']['l'])
-    n_ts_r = len(trps['ts']['r'])
-
 
     axarr[1].bar(x, [n_st_l, n_st_r], color=paper.maze_colors[maze], width=.2, capsize =9, label='shelter -> threat')
     axarr[1].scatter(x, [n_ts_l, n_ts_r], color=desaturate_color(paper.maze_colors[maze]),s=250, zorder=99, ec='k', label='threat -> shelter')
@@ -446,6 +463,57 @@ save_figure(f, os.path.join(plots_dir, f"trips per path per maze"))
 
 # %%
 """
+    Compare trip duration per arm with escape duration per arm
+"""
+NORMALIZE = False
+
+def plotter(ax, n, left, right, lstd, rstd, color, marker):
+    if NORMALIZE:
+        left = left/right
+        right = 1
+
+        
+        ax.plot([n-.15, n+.15], [left, right], color=color,  lw=4)
+    else:
+
+        ax.errorbar([n-.15, n+.15], [left, right], yerr=[lstd, rstd],  color=color,
+                    lw=4, elinewidth =2)
+    ax.scatter([n-.15, n+.15], [left, right], lw=2, edgecolors='k',  color=color, s=250, zorder=99, marker=marker)
+
+f, ax = plt.subplots(figsize=(16, 9), sharex=True)
+
+for n, (maze, trs) in enumerate(trials.datasets.items()):
+    # Get trips durations
+    st_l, st_r, ts_l, ts_r, std_st_l, std_st_r, \
+                std_ts_l, std_ts_r,  n_st_l, n_st_r, n_ts_l, n_ts_r = get_trips_means_stds(trips[maze])
+
+    # Get mean duration per arm
+    left = trs.loc[trs.escape_arm == 'left'].escape_duration.mean()
+    right = trs.loc[trs.escape_arm == 'right'].escape_duration.mean()
+
+    # Get std of duration per arm
+    lstd = trs.loc[trs.escape_arm == 'left'].escape_duration.std()
+    rstd = trs.loc[trs.escape_arm == 'right'].escape_duration.std()
+
+    # Plot left vs right mean duration + std
+    # t->s
+    plotter(ax, n, ts_l, ts_r, std_ts_l, std_ts_r, paper.maze_colors[maze], '$T$')
+
+    # t->s
+    plotter(ax, n, st_l, st_r, std_st_l, std_st_r, paper.maze_colors[maze], '$S$')
+
+    # escape
+    plotter(ax, n, left, right, lstd, rstd, paper.maze_colors[maze], 'o')
+
+# Cleanup axes
+_ = ax.set(title='Escape duration by path vs trips durations', ylabel='mean duration '+ 'NORMALIZED' if NORMALIZE else '(s)', 
+                    xticks=[0, 1, 2, 3, 4,], xticklabels=trips.keys())
+
+clean_axes(f)
+save_figure(f, os.path.join(plots_dir, "trips duration vs escape duration "))
+
+# %%
+"""
     Plot explorations occupancies as heatmaps
 """
 
@@ -474,3 +542,6 @@ for n, maze in enumerate(mazes):
 _ = axarr[-1].axis('off')
 clean_axes(f)
 save_figure(f, os.path.join(plots_dir, f"explorations_heatmaps"))
+
+
+# %%

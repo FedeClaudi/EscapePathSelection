@@ -13,12 +13,17 @@ from scipy.signal import resample
 import random
 from brainrender.colors import colorMap
 
-from fcutils.plotting.utils import create_figure, clean_axes, save_figure
+from fcutils.plotting.utils import create_figure, clean_axes, save_figure, set_figure_subplots_aspect
 from fcutils.plotting.colors import *
 from fcutils.plotting.plot_elements import plot_mean_and_error
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.plotting.colors import desaturate_color
+from fcutils.maths.stats import average_angles
 
+import pycircstat as circ
+from numpy import radians as rad
+from numpy import degrees as deg
+from numpy import sin, cos
 
 import paper
 from paper import paths
@@ -300,7 +305,10 @@ save_figure(f, os.path.join(paths.plots_dir, f'mean angle on threat {"quiver" if
 """
 ONLY_CATWALK = True
 f, axarr= plt.subplots(ncols=5, nrows=2, figsize=(22, 7))
-f.suptitle('Average haeding directoin')
+f.suptitle('Average haeding direction')
+
+f2, axarr2 = plt.subplots(ncols=5, figsize=(22, 5))
+
 
 mazes_datas = {}
 
@@ -324,12 +332,14 @@ for m, (maze, trs) in enumerate(trials.datasets.items()):
 
         # bdy dir of mvmt = 90 means going towards the shelter
         theta = trial.body_dir_mvmt
-        theta = pd.Series(theta).interpolate()
+        theta = pd.Series(theta).fillna(method='bfill')
+
+        body_theta = trial.body_orientation        
+        body_theta = pd.Series(body_theta).fillna(method='bfill')
 
         data[trial.escape_arm]['x'].append(trial.body_xy[:, 0])
         data[trial.escape_arm]['y'].append(trial.body_xy[:, 1])
-        data[trial.escape_arm]['t'].append(theta)
-
+        data[trial.escape_arm]['t'].append(body_theta)
     mazes_datas[maze] = data
     
     
@@ -339,43 +349,60 @@ for m, (maze, trs) in enumerate(trials.datasets.items()):
 
     for color, (arm, xyt), ax in zip([lcolor, rcolor], data.items(), [axarr[0, m], axarr[1, m]]):
         # Select subset of trials
-        idx = random.choices(np.arange(len(xyt['x'])), k=ntrials)
+        # idx = random.choices(np.arange(len(xyt['x'])), k=ntrials)
         
-        for key in xyt.keys():
-            xyt[key] = [xyt[key][i] for i in idx]
+        # for key in xyt.keys():
+        #     xyt[key] = [xyt[key][i] for i in idx]
 
-        if len(xyt['x']) != ntrials: raise ValueError
+        # if len(xyt['x']) != ntrials: raise ValueError
 
         x = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['x']), 0)
         y = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['y']), 0)
-        t = np.nanmean(resample_list_of_arrayes_to_avg_len(xyt['t']), 0)
+        # t = calc_angle_between_points_of_vector_2d(x, y)
+        _t = resample_list_of_arrayes_to_avg_len(xyt['t'])
+        t = [circ.mean(rad(_t[:, i])) for i in range(len(x))]
+        tstd = [circ.std(rad(_t[:, i])) for i in range(len(x))]
+        
+        # Plot just mean orientation along escape
+        # axarr2[m].plot(deg(t), color=color, lw=2)
+        plot_mean_and_error(deg(t), deg(tstd), axarr2[m], color=color, label=arm)
 
         l = len(x)
         bins = np.arange(20, l, 11)
-
         for n, bin in enumerate(bins[:-1]):
+
             meanx = np.nanmean(x[bin:bins[n+1]])
             meany = np.nanmean(y[bin:bins[n+1]])
-            meant = np.nanmean(t[bin:bins[n+1]])
+            # meant = circ.median(np.array(t[bin:bins[n+1]])) # np.nanmean(t[bin:bins[n+1]])
+            meant = np.mean(np.array(t[bin:bins[n+1]])) 
+            lowt = deg(circ.percentile(np.array(t[bin:bins[n+1]]), 5, 0))
+            hight = deg(circ.percentile(np.array(t[bin:bins[n+1]]), 95, 0))
+            
 
             # Plot arrow with meadian heading direction
-            dx = np.cos(np.radians(meant))
-            dy = np.sin(np.radians(meant))
+            dx = sin(meant)
+            dy = cos(meant)
 
             ax.arrow(meanx, meany, dx*12, dy*12, width=3, head_width=6, ec='k', lw=.2, fc=color)
 
             # Plot circle segment with low and high quartile range of theta
-            lowt = np.percentile(t[bin:bins[n+1]], 1)
-            hight = np.percentile(t[bin:bins[n+1]], 99)
-
-            arc = Wedge((meanx, meany),  30, width=15, theta1=lowt, theta2=hight, fc=color, alpha=.4)
+            # arc = Wedge((meanx, meany),  30, width=15, theta1=lowt, theta2=hight, fc=color, alpha=.4)
+            arc = Wedge((meanx, meany), 30, width=15, theta2=90 + 360 - lowt, theta1=90 + 360 - hight,  fc=color, alpha=.4)
             ax.add_patch(arc)
 
             ax.axis('off')
             ax.set(title=maze if arm == 'left' else None, xlim=[460, 540], ylim=[150, 330])
 
+    axarr2[m].set(title=maze, xlabel='escape_progression', xticks=[0, len(x)],
+                    xticklabels=[0, 1], ylabel='Angle relative to shelter')
+    axarr2[m].legend()
 
 save_figure(f, os.path.join(paths.plots_dir, f'mean heading dir on T binned'))
+
+clean_axes(f2)
+set_figure_subplots_aspect(wspace=.8, top=.8, bottom=.1)
+save_figure(f2, os.path.join(paths.plots_dir, f'mean angle on T'))
+
 
 # %%
 """
