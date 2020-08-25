@@ -12,7 +12,7 @@ from scipy.signal import resample
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
-from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
+from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, plot_shaded_withline
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
@@ -23,6 +23,8 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.utils.explorations import get_maze_explorations
+from paper.utils.misc import resample_list_of_arrayes_to_avg_len, plot_trial_tracking_as_lines
+
 
 # %%
 
@@ -105,10 +107,10 @@ trials =  TrialsLoader(**params).load_trials_by_condition(maze_design=4)
 # %%
 # Load explorations for each session and check that the mouse goes on the central arm
 explorations = get_maze_explorations(4)
-f, axarr = plt.subplots(ncols=5, nrows=5)
+f, axarr = plt.subplots(ncols=5, nrows=5, figsize=(16, 16))
 axarr = axarr.flatten()
 
-keep_sessions = [9, 10, 12, 13, 14, 15]
+keep_sessions = [8, 9, 11, 12, 13, 14]
 keep_session_names = []
 
 for ax, (i, expl) in zip(axarr, explorations.iterrows()):
@@ -138,5 +140,167 @@ trials = trials.loc[trials.session_name.isin(keep_session_names)]
 # --------------------------- Plot trials tracking --------------------------- #
 plot_trials('maze4', trials)
 
+
+
+# %%
+"""
+    Look at arm occupancy during the exploration
+"""
+colors = [darkseagreen, salmon, lightseagreen]
+
+def get_session_time_on_arms(exploration):
+    """
+
+        Given one entry of Explorations() this returns the time spent on each
+        of the arms during the exploration. If normalise=True, the time per arm
+        is normalized by the relative length of each arm (relative to the right path)
+    """
+    x, y = exploration.body_tracking[:, 0], exploration.body_tracking[:, 1]
+
+    # Get time spent on each path in seconds normalized by total duration of explorations
+    on_left = len(x[x  < 450])  / exploration.fps
+    on_right = len(x[x  > 550])  / exploration.fps
+
+    on_center = np.where((x > 450) & (x < 550) &
+                        (y > 380) & (y < 520))
+    # raise ValueError(on_center[0])
+    on_center = len(x[on_center[0]]) / exploration.fps
+    return on_left, on_right, on_center
+
+f, ax = plt.subplots()
+for i, expl in explorations.iterrows():
+    if i not in keep_sessions: continue
+    
+    l, r, c = get_session_time_on_arms(expl)
+
+    ax.scatter([0, 1, 2], [l, c, r], c=colors, zorder=99, s=159)
+    ax.plot([0, 1, 2], [l, c, r], color=[.8, .8, .8])
+
+ax.set(title='Time spent on paths during exploration. M4 - dead end',
+        ylabel='TOT time (s)', 
+        xticks=[0, 1, 2], xticklabels=['left', 'center', 'right'])
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm occupancy exploration'), svg=False)
+
+# %%
+"""
+    Plot example tracking for M4 with dead end arm looking at speed etc
+"""
+colors = [darkseagreen, salmon, lightseagreen]
+arms = ['Left', 'Center', 'Right']
+
+L, R, C = [], [], [] # store the speed profiles of escapes by arm
+for i, trial in trials.iterrows():
+    if trial.escape_arm == 'left':
+        L.append(trial.body_speed)
+    elif trial.escape_arm == 'right':
+        R.append(trial.body_speed)
+    else:
+        C.append(trial.body_speed)
+
+
+# Normalize escape duration
+L = resample_list_of_arrayes_to_avg_len(L, N=100).mean(0)
+R = resample_list_of_arrayes_to_avg_len(R, N=100).mean(0)
+C = resample_list_of_arrayes_to_avg_len(C, N=100).mean(0)
+
+f, ax = plt.subplots(figsize=(16, 9))
+for arm, speed, color in zip(arms, [L, C, R], colors):
+    # ax.plot(speed, color=color, lw=2, label=arm)
+    plot_shaded_withline(ax, np.arange(len(speed)), speed, color=color, label=arm, lw=4, alpha=.05)
+
+ax.legend() 
+ax.set(title='M4 dead end | escape speed by arm ',
+        xticks=[0, 100], xticklabels=['start', 'end'],
+        ylabel='speed')
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end escape speed by arm'), svg=False)
+
+# %%
+"""
+    Similar to above, looking at running speed
+    for escapes of each arm, but including tracking
+"""
+cmaps = ['Blues', 'Reds', 'Greens']
+arms = ['Left', 'Center', 'Right']
+
+L, R, C = dict(x=[], y=[], s=[]), dict(x=[], y=[], s=[]), dict(x=[], y=[], s=[]) # store the speed profiles of escapes by arm
+for i, trial in trials.iterrows():
+    if trial.escape_arm == 'left':
+        L['s'].append(trial.body_speed)
+        L['y'].append(trial.body_xy[:, 1])
+        L['x'].append(trial.body_xy[:, 0])
+    elif trial.escape_arm == 'right':
+        R['s'].append(trial.body_speed)
+        R['y'].append(trial.body_xy[:, 1])
+        R['x'].append(trial.body_xy[:, 0])
+    else:
+        C['s'].append(trial.body_speed)
+        C['y'].append(trial.body_xy[:, 1])
+        C['x'].append(trial.body_xy[:, 0])
+
+
+# Normalize escape duration
+L = {k:resample_list_of_arrayes_to_avg_len(v, N=100).mean(0) for k,v in L.items()}
+R = {k:resample_list_of_arrayes_to_avg_len(v, N=100).mean(0) for k,v in R.items()}
+C = {k:resample_list_of_arrayes_to_avg_len(v, N=100).mean(0) for k,v in C.items()}
+
+f, ax = plt.subplots(figsize=(9, 9))
+for arm, data, cmap in zip(arms, [L, C, R], cmaps):
+    ax.scatter(data['x'][10:-2], data['y'][10:-2],
+                    c=data['s'][10:-2], cmap=cmap,
+                    s=200, lw=1, edgecolors='k',    )
+
+ax.legend() 
+ax.axis('off')
+_ = ax.set(title='Mean trajectory per arm colored by speed')
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm with tracking'), svg=False)
+
+# %%
+"""
+    Plot example trials for M4
+"""
+
+left_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'left'][0]
+right_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'right'][7]
+center_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'center'][0]
+idxs = [left_trials_idx, center_trials_idx, right_trials_idx]
+
+f, axarr = plt.subplots(figsize=(9*3, 9), ncols=3)
+
+for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
+    trial = trials.loc[trials.index == tidx].iloc[0]
+    plot_trial_tracking_as_lines(trial, ax, color, 2, color_by_speed=True, cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
+
+    ax.set(title=arm, xlim=[430, 560], ylim=[220, 350])
+    ax.axis('off')
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=False)
+
+
+# %%
+"""
+    Plot out-of-T time for each set of trials
+"""
+
+L, C, R = [], [], []
+for i, trial in trials.iterrows():
+    if trial.escape_arm == 'left':
+        L.append(trial.time_out_of_t)
+    elif trial.escape_arm == 'right':
+        R.append(trial.time_out_of_t)
+    else:
+        C.append(trial.time_out_of_t)
+
+Lstd, Cstd, Rstd = np.std(L), np.std(C), np.std(R)
+L, C, R = np.mean(L), np.mean(C), np.mean(R)
+
+f, ax = plt.subplots(figsize=(9, 9))
+ax.errorbar([0, 1, 2], [L, C, R], yerr=[Lstd, Cstd, Rstd], lw=2, color=[.4, .4, .4])
+ax.scatter([0, 1, 2], [L, C, R], c=colors, s=200, zorder=99, lw=1, edgecolors=[.4, .4, .4])
+
+ax.set(ylabel='time (s)', xticks=[0, 1, 2], xticklabels=['left', 'center', 'right'], title='Time out of T')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end time of out of T'), svg=False)
 
 # %%

@@ -141,6 +141,7 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
     ]
 
     for trial, color in zip(examples, [lcolor, rcolor]):
+        raise ValueError('use paper.utils.misc.plot_trial_tracking_as_lines ')
         nx, ny = trial.neck_xy[:, 0], trial.neck_xy[:, 1]
         bx, by = trial.body_xy[:, 0], trial.body_xy[:, 1]
         tx, ty = trial.tail_xy[:, 0], trial.tail_xy[:, 1]
@@ -402,6 +403,8 @@ save_figure(f, os.path.join(paths.plots_dir, f'mean heading dir on T binned'))
 clean_axes(f2)
 set_figure_subplots_aspect(wspace=.8, top=.8, bottom=.1)
 save_figure(f2, os.path.join(paths.plots_dir, f'mean angle on T'))
+
+""
 
 
 # %%
