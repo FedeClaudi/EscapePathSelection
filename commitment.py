@@ -29,7 +29,7 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.helpers.mazes_stats import get_mazes
-from paper.utils.misc import resample_list_of_arrayes_to_avg_len
+from paper.utils.misc import resample_list_of_arrayes_to_avg_len, plot_trial_tracking_as_lines
 
 """
     Set of plots to look at commitment to left vs right arm during escape
@@ -141,33 +141,8 @@ for ax, (maze, trs) in zip(axarr, trials.datasets.items()):
     ]
 
     for trial, color in zip(examples, [lcolor, rcolor]):
-        raise ValueError('use paper.utils.misc.plot_trial_tracking_as_lines ')
-        nx, ny = trial.neck_xy[:, 0], trial.neck_xy[:, 1]
-        bx, by = trial.body_xy[:, 0], trial.body_xy[:, 1]
-        tx, ty = trial.tail_xy[:, 0], trial.tail_xy[:, 1]
-
-        # Plot every N thick white
-        ax.plot([nx[1::8], bx[1::8]], [ny[1::8], by[1::8]], color=white, lw=4, zorder=1,
-                        solid_capstyle='round')
-        ax.plot([bx[1::8], tx[1::8]], [by[1::8], ty[1::8]], color=white, lw=4, zorder=1,
-                        solid_capstyle='round')
-
-        # Plot every N
-        # ax.scatter(nx[1::8], ny[1::8], color=red, lw=3, zorder=100, marker="d")
-        ax.plot([nx[1::8], bx[1::8]], [ny[1::8], by[1::8]], color=color, lw=3, zorder=3,
-                        solid_capstyle='round')
-        ax.plot([bx[1::8], tx[1::8]], [by[1::8], ty[1::8]], color=color, lw=3, zorder=2,
-                        solid_capstyle='round')
-
-        # Plot all trials
-        ax.plot([nx, bx], [ny, by], color=color, lw=.8, alpha=.7, zorder=0,
-                        solid_capstyle='round')
-        ax.plot([bx, tx], [by, ty], color=color, lw=.8, alpha=.7, zorder=0,
-                        solid_capstyle='round')
-
-
-        
-
+        plot_trial_tracking_as_lines(trial, ax, color, 8)
+            
     # Clean up and save
     ax.axis('off')
     ax.set(title=maze)
@@ -311,41 +286,49 @@ f.suptitle('Average haeding direction')
 f2, axarr2 = plt.subplots(ncols=5, figsize=(22, 5))
 
 
-mazes_datas = {}
+def get_maze_datas(trs, axarr=None):
+
+    mazes_datas = {}
+
+    for m, (maze, trs) in enumerate(trs.datasets.items()):
+        trs = trs.loc[trs.escape_arm != 'center']
+
+        lcolor = paper.maze_colors[maze]
+        rcolor = desaturate_color(lcolor, k=.2)
+
+        data = {'left':{'x':[], 'y':[], 't':[]}, 'right':{'x':[], 'y':[], 't':[]}}
+        for i, trial in trs.iterrows():
+
+            if ONLY_CATWALK and trial.body_xy[0, 1] > 230: continue 
+            
+            if axarr is not None:
+                if trial.escape_arm == 'left':
+                    ax = axarr[0, m]
+                else: 
+                    ax = axarr[1, m]
+
+                ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=2, color=[.9, .9, .9], zorder=-10)
+
+            # bdy dir of mvmt = 90 means going towards the shelter
+            theta = trial.body_dir_mvmt
+            theta = pd.Series(theta).fillna(method='bfill')
+
+            body_theta = trial.body_orientation        
+            body_theta = pd.Series(body_theta).fillna(method='bfill')
+
+            data[trial.escape_arm]['x'].append(trial.body_xy[:, 0])
+            data[trial.escape_arm]['y'].append(trial.body_xy[:, 1])
+            data[trial.escape_arm]['t'].append(body_theta)
+        mazes_datas[maze] = data
+    return mazes_datas
+        
+mazes_datas = get_maze_datas(trials, axarr=axarr)
 
 for m, (maze, trs) in enumerate(trials.datasets.items()):
-    trs = trs.loc[trs.escape_arm != 'center']
 
-    lcolor = paper.maze_colors[maze]
-    rcolor = desaturate_color(lcolor, k=.2)
-
-    data = {'left':{'x':[], 'y':[], 't':[]}, 'right':{'x':[], 'y':[], 't':[]}}
-    for i, trial in trs.iterrows():
-
-        if ONLY_CATWALK and trial.body_xy[0, 1] > 230: continue 
-
-        if trial.escape_arm == 'left':
-            ax = axarr[0, m]
-        else: 
-            ax = axarr[1, m]
-
-        ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], lw=2, color=[.9, .9, .9], zorder=-10)
-
-        # bdy dir of mvmt = 90 means going towards the shelter
-        theta = trial.body_dir_mvmt
-        theta = pd.Series(theta).fillna(method='bfill')
-
-        body_theta = trial.body_orientation        
-        body_theta = pd.Series(body_theta).fillna(method='bfill')
-
-        data[trial.escape_arm]['x'].append(trial.body_xy[:, 0])
-        data[trial.escape_arm]['y'].append(trial.body_xy[:, 1])
-        data[trial.escape_arm]['t'].append(body_theta)
-    mazes_datas[maze] = data
-    
-    
     # Plot the average heading direction per bin
     # make sure to use the same number of trials
+    data = mazes_datas[maze]
     ntrials = np.min([len(data['left']['x']), len(data['right']['x'])])
 
     for color, (arm, xyt), ax in zip([lcolor, rcolor], data.items(), [axarr[0, m], axarr[1, m]]):
@@ -413,6 +396,33 @@ save_figure(f2, os.path.join(paths.plots_dir, f'mean angle on T'))
 
     Using mazes_datas generated above
 """
+
+WHOLE_TRACE = True # if False only therat platform data is used (using maze_datas from above)
+
+if WHOLE_TRACE:
+    # load data
+    # --------------------------------- Load data -------------------------------- #
+    try:
+        print(whole_trials) # avpod reloading
+    except:
+        print("Loading data")
+        params = dict(
+            naive = None,
+            lights = None, 
+            tracking = 'all',
+            escapes_dur = True,
+        )
+
+        whole_trials = TrialsLoader(**params)
+        whole_trials.load_psychometric()
+        whole_trials.remove_change_of_mind_trials() # remove silly trials
+    
+    mazes_datas = get_maze_datas(whole_trials)
+
+else:
+    mazes_datas = get_maze_datas(trials)
+
+
 import random 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -422,6 +432,11 @@ from tqdm import tqdm
 N_repeats = 1000
 bins = None
 
+
+if not WHOLE_TRACE:
+    MAXY = 330
+else:
+    MAXY = 450
 
 f, axarr = plt.subplots(ncols=6, sharey=True,figsize=(22, 7))
 f.suptitle(f'Logistic regression: predict arm from dir of mvmt\n {N_repeats} repeats per maze')
@@ -436,7 +451,7 @@ for ax, (maze, data) in tqdm(zip(axarr[1:], mazes_datas.items())):
                 [1 for r in np.arange(len(data['right']['x']))]
 
     for xx, yy in zip(x,y):
-        axarr[0].plot(xx, yy, lw=.25, color=[.7, .7, .7])
+        axarr[0].plot(xx[yy < MAXY], yy[yy < MAXY], lw=.25, color=[.7, .7, .7])
 
     # Get single frames
     X, Y, A, T = [], [], [], []
@@ -454,11 +469,13 @@ for ax, (maze, data) in tqdm(zip(axarr[1:], mazes_datas.items())):
     
     if len(left) < len(right):
         right = right.sample(len(left))
-    else:
+    elif len(left) > len(right):
         left = left.sample(len(right))
     df = pd.concat([left, right])
-    df = df.loc[(df.y > 150)&(df.y < 330)]
     
+    # Keep only data in range
+    df = df.loc[(df.y > 150)&(df.y < MAXY)]
+
     # --------------------------------- fit model -------------------------------- #
     # Fit the model 10 times and take average
     allcorrect, allincorrect = [], []
@@ -491,8 +508,6 @@ for ax, (maze, data) in tqdm(zip(axarr[1:], mazes_datas.items())):
 
     # Plot
     x = bins[0:-1] # + np.cumsum(np.diff(bins)/2)
-    
-
     colors = [colorMap(p, 'Greens', vmin=0, vmax=1) for p in np.mean(allcorrect, 0)]
 
     ax.barh(x, np.mean(allcorrect, 0), xerr=np.std(allcorrect, 0), 
@@ -505,11 +520,7 @@ for ax, (maze, data) in tqdm(zip(axarr[1:], mazes_datas.items())):
 
     ax.set(title=maze, xlabel='fraction correct', xticks=[0, .5, 1], xlim=[0, 1])
 
-# axarr[0].axhline(150)
-# axarr[0].axhline(330)
-
 axarr[0].axis('off')
-axarr[0].set(ylabel='Y coordinate')
 
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f'predict arm from theta'))
