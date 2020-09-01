@@ -22,7 +22,7 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.helpers.mazes_stats import get_mazes
-from paper.utils.misc import run_multi_t_test_bonferroni
+from paper.utils.misc import run_multi_t_test_bonferroni, run_multi_t_test_bonferroni_one_samp_per_item
 
 # %%
 _mazes = get_mazes()
@@ -106,8 +106,12 @@ save_figure(f2, os.path.join(paths.plots_dir, f"lowperc_escape duration ratio_by
 """
     Look at distribution of out-of-T times. 
 """
+
+
 f, ax  = plt.subplots(figsize=(16, 9))
 
+
+meandata = {}
 for n, (maze, trs) in enumerate(trials.datasets.items()):
     left = trs.loc[trs.escape_arm == 'left'].time_out_of_t.mean()
     right = trs.loc[trs.escape_arm == 'right'].time_out_of_t.mean()
@@ -115,14 +119,34 @@ for n, (maze, trs) in enumerate(trials.datasets.items()):
     lstd = trs.loc[trs.escape_arm == 'left'].time_out_of_t.std()
     rstd = trs.loc[trs.escape_arm == 'right'].time_out_of_t.std()
 
+    meandata[maze] = trs.time_out_of_t.values
+
     ax.errorbar([n-.15, n+.15], [left, right], yerr=[lstd, rstd],  color=paper.maze_colors[maze],
                     ms=16, lw=6, elinewidth =2)
     ax.plot([n-.15, n+.15], [left, right], 'o-',  color=paper.maze_colors[maze],
                     lw=6, ms=16)
 
-_ = ax.set(title='Time out of threat platform pby maze and arm', ylabel='mean duration (s)', 
+
+# Run multi test bonferroni
+sig, p, pairs = run_multi_t_test_bonferroni_one_samp_per_item(meandata)
+x_offsets = dict(
+    maze1 = 0,
+    maze2 = 1,
+    maze3 = 2, 
+    maze4 = 3,
+    maze6 = 4
+)
+
+yoff = 5
+for issig, (m1, m2) in zip(sig, pairs):
+    if issig:
+        print(m1, m2)
+        ax.errorbar([x_offsets[m1], x_offsets[m2]],[yoff, yoff], yerr=.1, lw=2, color='k')
+        yoff += .2
+
+
+_ = ax.set(title='Time out of threat platform by maze and arm', ylabel='mean duration (s)', 
             xticks=[0, 1, 2, 3, 4,], xticklabels=[maze for maze in trials.datasets.keys()])
 
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"))
-# %%

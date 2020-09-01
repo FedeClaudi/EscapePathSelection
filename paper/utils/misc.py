@@ -4,9 +4,12 @@ from scipy.signal import resample
 from scipy.stats import ttest_ind as ttest
 from statsmodels.stats.multitest import multipletests
 from brainrender.colors import colorMap
+import itertools
+
 
 def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, thin_alpha=.6,
                                     outline_color='w', outline_width=2, 
+                                    head_size=180,
                                     color_by_speed=False, cmap=None):
     """
         Given a Trial's data it plots the tracking as
@@ -35,21 +38,26 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
             # Plot colored line
             if color_by_speed:
                 _col = colorMap(speed[i], name=cmap, vmin=0, vmax=speed.max())
-                ax.plot([nx[i], bx[i]], [ny[i], by[i]], c=_col, lw=thick_lw, zorder=3,
-                                solid_capstyle='round')
-                ax.plot([bx[i], tx[i]], [by[i], ty[i]], c=_col, lw=thick_lw, zorder=2,
-                                solid_capstyle='round')
+                line_col = _col
             else:
-                ax.plot([nx[i], bx[i]], [ny[i], by[i]], c=color, lw=thick_lw, zorder=3,
-                                solid_capstyle='round')
-                ax.plot([bx[i], tx[i]], [by[i], ty[i]], c=color, lw=thick_lw, zorder=2,
-                                solid_capstyle='round')
+                line_col = color
+
+            # mark head
+            ax.scatter(nx[i], ny[i], color=line_col, lw=outline_width*.75, zorder=3, 
+                            s=head_size, edgecolors=outline_color)   
+
+            # Plot body
+            ax.plot([nx[i], bx[i]], [ny[i], by[i]], c=line_col, lw=thick_lw, zorder=3,
+                            solid_capstyle='round')
+            ax.plot([bx[i], tx[i]], [by[i], ty[i]], c=line_col, lw=thick_lw, zorder=2,
+                            solid_capstyle='round')
 
     # Plot all frames
     ax.plot([nx, bx], [ny, by], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
                     solid_capstyle='round')
     ax.plot([bx, tx], [by, ty], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
                     solid_capstyle='round')
+
 
 def resample_list_of_arrayes_to_avg_len(lst, N=None, interpolate=False):
     """
@@ -88,3 +96,19 @@ def run_multi_t_test_bonferroni(meandurs):
 
     significant, pval, _, _ = multipletests(ps, method='bonferroni', alpha=0.05)
     return significant, pval
+
+def run_multi_t_test_bonferroni_one_samp_per_item(meandurs):
+    """
+        it expects a dictionary with 'mazes' as keys and an 
+        array of numbers for each maze with some kind measurement. 
+    """
+
+    ts, ps, pairs = [], [], []
+    for (m1, m2) in itertools.combinations(meandurs.keys(), 2):
+        res = ttest(meandurs[m1], meandurs[m2], equal_var=False)
+        ts.append(res.statistic)
+        ps.append(res.pvalue)
+        pairs.append((m1, m2)) 
+
+    significant, pval, _, _ = multipletests(ps, method='bonferroni', alpha=0.05)
+    return significant, pval, pairs

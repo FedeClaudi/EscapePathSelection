@@ -81,7 +81,7 @@ def plot_trials(maze, trials):
                 xticklabels=['left', 'center', 'right'], ylabel='p(arm)', xlabel='arm')
 
     clean_axes(f)
-    save_figure(f, os.path.join(paths.plots_dir, f'{maze}_p_arm'), svg=False)
+    save_figure(f, os.path.join(paths.plots_dir, f'{maze}_p_arm'), svg=True)
 
 
 # %%
@@ -180,7 +180,7 @@ ax.set(title='Time spent on paths during exploration. M4 - dead end',
         ylabel='TOT time (s)', 
         xticks=[0, 1, 2], xticklabels=['left', 'center', 'right'])
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm occupancy exploration'), svg=False)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm occupancy exploration'), svg=True)
 
 # %%
 """
@@ -214,7 +214,7 @@ ax.set(title='M4 dead end | escape speed by arm ',
         xticks=[0, 100], xticklabels=['start', 'end'],
         ylabel='speed')
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end escape speed by arm'), svg=False)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end escape speed by arm'), svg=True)
 
 # %%
 """
@@ -254,7 +254,7 @@ for arm, data, cmap in zip(arms, [L, C, R], cmaps):
 ax.legend() 
 ax.axis('off')
 _ = ax.set(title='Mean trajectory per arm colored by speed')
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm with tracking'), svg=False)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm with tracking'), svg=True)
 
 # %%
 """
@@ -274,7 +274,7 @@ for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
 
     ax.set(title=arm, xlim=[430, 560], ylim=[220, 350])
     ax.axis('off')
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=False)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=True)
 
 
 # %%
@@ -301,6 +301,6 @@ ax.scatter([0, 1, 2], [L, C, R], c=colors, s=200, zorder=99, lw=1, edgecolors=[.
 ax.set(ylabel='time (s)', xticks=[0, 1, 2], xticklabels=['left', 'center', 'right'], title='Time out of T')
 
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end time of out of T'), svg=False)
+save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end time of out of T'), svg=True)
 
 # %%
