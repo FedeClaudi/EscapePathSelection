@@ -7,9 +7,11 @@ from brainrender.colors import colorMap
 import itertools
 
 
+
 def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, thin_alpha=.6,
                                     outline_color='w', outline_width=2, 
                                     head_size=180,
+                                    stop_frame = None, 
                                     color_by_speed=False, cmap=None):
     """
         Given a Trial's data it plots the tracking as
@@ -26,8 +28,11 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
     tx, ty = trial.tail_xy[:, 0], trial.tail_xy[:, 1]
     speed = trial.body_speed
 
+    if stop_frame is None:
+        stop_frame = len(nx)
+
     # Plot every N thick colored
-    for i in np.arange(len(nx)):
+    for i in np.arange(stop_frame):
         if i % N == 0:
             # Plot outline
             ax.plot([nx[i], bx[i]], [ny[i], by[i]], color=outline_color, lw=thick_lw+outline_width, zorder=1,
@@ -53,9 +58,9 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
                             solid_capstyle='round')
 
     # Plot all frames
-    ax.plot([nx, bx], [ny, by], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
+    ax.plot([nx[:stop_frame], bx[:stop_frame]], [ny[:stop_frame], by[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
                     solid_capstyle='round')
-    ax.plot([bx, tx], [by, ty], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
+    ax.plot([bx[:stop_frame], tx[:stop_frame]], [by[:stop_frame], ty[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
                     solid_capstyle='round')
 
 

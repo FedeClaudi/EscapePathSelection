@@ -102,25 +102,33 @@ colors = [darkseagreen, salmon, lightseagreen]
 
 COL_SPEED = False
 
+
 left_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'left'][1]
 right_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'right'][7]
 center_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'center'][1]
 idxs = [left_trials_idx, center_trials_idx, right_trials_idx]
 
-f, ax = plt.subplots(figsize=(9, 9))
+f, axarr = plt.subplots(figsize=(9*3, 9), ncols=3)
 
-for arm, tidx, color, cmap in zip(arms, idxs, colors, cmaps):
+for n, (arm, tidx, color, cmap) in enumerate(zip(arms, idxs, colors, cmaps)):
+    ax = axarr[n]
+
+    if arm == 'Center':
+        stop_frame = 100
+    else:
+        stop_frame = None
     trial = trials.loc[trials.index == tidx].iloc[0]
     plot_trial_tracking_as_lines(trial, ax, color, 10, 
             color_by_speed=COL_SPEED, cmap=cmap, 
+            stop_frame = stop_frame,
             outline_color=[.4, .4, .4], 
             thin_alpha=.5, thin_lw=2)
 
-    # ax.set(title=arm, xlim=[430, 560], ylim=[220, 350])
+    ax.set(title=arm, xlim=[300, 700], ylim=[220, 700])
     ax.axis('off')
 
 name = 'colored by speed' if COL_SPEED else ''
-save_figure(f, os.path.join(savedir, 'M4 sing trials example ' + name), svg=True)
+save_figure(f, os.path.join(savedir, 'M4 sing trials example split ' + name), svg=True)
 
 # %%
 """
@@ -182,3 +190,5 @@ for arm, std_data, data, color in zip(arms, [L_std, C_std, R_std], [L, C, R], co
 ax.axis('off')
 _ = ax.set(title='Mean trajectory per arm colored by speed')
 save_figure(f, os.path.join(savedir, 'F1 M4 tracking'), svg=True)
+
+# %%
