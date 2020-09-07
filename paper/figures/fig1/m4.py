@@ -140,25 +140,30 @@ L, R, C = dict(x=[], y=[], s=[]), dict(x=[], y=[], s=[]), dict(x=[], y=[], s=[])
 
 
 for i, trial in trials.iterrows():
+    x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+
     if trial.escape_arm == 'left':
         L['s'].append(trial.body_speed)
-        L['y'].append(trial.body_xy[:, 1])
-        L['x'].append(trial.body_xy[:, 0])
+        L['y'].append(y)
+        L['x'].append(x)
         color = colors[0]
     elif trial.escape_arm == 'right':
-        if trial.body_xy[:, 0].min() < 400: continue
+        if x.min() < 400: continue
         R['s'].append(trial.body_speed)
-        R['y'].append(trial.body_xy[:, 1])
-        R['x'].append(trial.body_xy[:, 0])
+        R['y'].append(y)
+        R['x'].append(x)
         color = colors[2]
-
     else:
+        idx = np.where(trial.body_xy[:, 1] > 470)[0][0]
+        x, y = x[:idx], y[:idx]
         C['s'].append(trial.body_speed)
-        C['y'].append(trial.body_xy[:, 1])
-        C['x'].append(trial.body_xy[:, 0])
+        C['y'].append(y)
+        C['x'].append(x)
         color = colors[1]
 
-    ax.plot(trial.body_xy[:, 0], trial.body_xy[:, 1], color=desaturate_color(color), lw=.75)
+    ax.plot(x, y, color=desaturate_color(color), lw=.75)
+
+
 
 print(f'{len(L["s"])} left trials, {len(R["s"])} right and {len(C["s"])} left')
 
@@ -180,7 +185,7 @@ for arm, std_data, data, color in zip(arms, [L_std, C_std, R_std], [L, C, R], co
 
     a = x - stdx
     c = x + stdx
-    ax.fill_betweenx(y, a, c, color=color, alpha=.2)
+    # ax.fill_betweenx(y, a, c, color=color, alpha=.2)
     # ax.fill_between(x, c, a, color=color, alpha=.2)
 
 
