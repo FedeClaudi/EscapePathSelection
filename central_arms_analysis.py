@@ -10,7 +10,6 @@ import os
 from math import sqrt
 from scipy.signal import resample
 import matplotlib.colors  
-from pyinspect import search, print_function
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
@@ -274,6 +273,9 @@ save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by 
 """
     Plot example trials for M4
 """
+import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 
 left_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'left'][0]
 right_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'right'][7]
@@ -285,23 +287,51 @@ padding = 15
 for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
     trial = trials.loc[trials.index == tidx].iloc[0]
     # Get custom cmap
-    norm=plt.Normalize(0, np.max(trial.body_speed))
+    norm=plt.Normalize(0, 15)
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white","#C24B91"])
+    cmap.set_over("#C24B91")
+    cmap.set_under("white")
 
     # Get when mouse is about to cross borders
     x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
     stop = np.where((x < 400 + padding) | (x > 600 - padding) | (y > 430 - padding))[0][0]
 
     # Plot
-    plot_trial_tracking_as_lines(trial, ax,color, 4, color_by_speed=True,  
+    plot_trial_tracking_as_lines(trial, ax, color, 4, color_by_speed=True,  
             stop_frame = stop,
             thick_lw=8, head_size=500, outline_width=3,
             cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
 
+
+
     ax.set(title=arm, xlim=[400, 600], ylim=[220, 450])
+
+    # make colormap
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='7%', pad=0.05)
+    cb1 = mpl.colorbar.ColorbarBase(cax, 
+                                cmap=cmap,
+                                norm=norm,
+                                orientation='vertical')
+    cb1.set_label('Speed (a.u.)')
     ax.axis('off')
 save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=True)
 
+# %%
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+fig, ax = plt.subplots(figsize=(6, 1))
+fig.subplots_adjust(bottom=0.5)
+
+cmap = mpl.cm.cool
+norm = mpl.colors.Normalize(vmin=5, vmax=10)
+
+cb1 = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                norm=norm,
+                                orientation='horizontal')
+cb1.set_label('Some Units')
+fig.show()
 
 # %%
 """

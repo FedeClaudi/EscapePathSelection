@@ -164,6 +164,44 @@ clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"))
 
 # %%
+"""
+    Same, but without spitting between left and right
+
+"""
+def plot(mn, std, color, ms, off):
+    ax.errorbar([n + off], [mn], yerr=[std],  color=color,
+                ms=ms, lw=6, elinewidth =2)
+    ax.plot([n + off], [mn], 'o-',  color=color,
+                    lw=2, ms=ms)
+
+
+f, ax  = plt.subplots(figsize=(16, 9))
+for n, (maze, trs) in enumerate(trials.datasets.items()):
+    mn, std = trs.time_out_of_t.mean(), trs.time_out_of_t.std()
+
+    plot(mn, std, paper.maze_colors[maze], 16, 0)
+
+    for mouse in trs.mouse_id.unique():
+        mouse_trials = trs.loc[trs.mouse_id == mouse]
+        mn, std = mouse_trials.time_out_of_t.mean(), mouse_trials.time_out_of_t.std()
+
+        ax.plot([n + .1 + np.random.normal(0, .02)], [mn], 'o-',  color=[.7, .7, .7],
+                    lw=2, ms=8, zorder=-1)
+
+
+yoff = 5
+for issig, (m1, m2) in zip(sig, pairs):
+    if issig:
+        print(m1, m2)
+        ax.errorbar([x_offsets[m1], x_offsets[m2]],[yoff, yoff], yerr=.1, lw=2, color='k')
+        yoff += .2
+
+
+_ = ax.set(title='Time out of threat platform by maze and arm', ylabel='mean duration (s)', 
+            xticks=[0, 1, 2, 3, 4,], xticklabels=[maze for maze in trials.datasets.keys()])
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze"))
 
 # %%
 
