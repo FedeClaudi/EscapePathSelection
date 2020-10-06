@@ -1,5 +1,4 @@
 # %%
-from matplotlib.pyplot import ylabel
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -147,7 +146,6 @@ for n, (maze, trs) in enumerate(trials.datasets.items()):
 
 
     binned = {be:[] for be in bin_edges}
-
     for i, t in trs.iterrows():
         for pre, post in bin_edges:
             if t.time_out_of_t >= pre and t.time_out_of_t < post:
@@ -171,3 +169,58 @@ axarr[-1].set(xlabel='ToT (s)')  # ylim=[-.1, 1.1]
 f.tight_layout()
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f"ToT by maze p(R) binned by ToT - equal N bins"), svg=True)
+
+# %%
+"""
+    Same as above, but binning trials based on max escape speed
+
+"""
+f, axarr = plt.subplots(nrows=5, sharex=True, sharey=False, figsize=(14, 12))
+n_bins_maze = [4, 4, 4, 3, 4]
+
+KEY = 'stim_time_s'
+YKEY = 'time_out_of_t'
+
+for n, (maze, trs) in enumerate(trials.datasets.items()):
+    # Get 'max' speed during escape
+    trs['peak_speed'] = [np.percentile(s, 90) for s in trs.body_speed]
+
+    edges = pd.qcut(trs[KEY].unique(), n_bins_maze[n]).value_counts().sort_index().index.values
+    bin_edges = [(v.left, v.right) for v in edges]
+
+
+    binned = {be:[] for be in bin_edges}
+    for i, t in trs.iterrows():
+        for pre, post in bin_edges:
+            if t[KEY] >= pre and t[KEY] < post:
+                binned[(pre, post)].append(t)
+
+    X, Y = [], []
+    for (pre, post), ts in binned.items():
+        if not ts: continue
+        if YKEY == 'accuracy':
+            Y.append(np.mean([1 if t.escape_arm == 'right' else 0 for t in ts]))
+        else:
+            Y.append(np.mean([t[YKEY] for t in ts]))
+        X.append(pre+(post-pre)/2)
+
+    if n == 4 and YKEY == 'accuracy':
+        Y = [1-y for y in Y]
+    elif n == 3 and YKEY == 'accuracy': 
+        #  in M4 accuracy is always 1
+        axarr[n].axis('off')
+        continue
+
+    axarr[n].scatter(X, Y, color=paper.maze_colors[maze], s=200, lw=4, edgecolors='white', zorder=100)
+    axarr[n].plot(X, Y, color=paper.maze_colors[maze], lw=2)
+
+    axarr[n].set(
+        ylim = [np.min(Y) - .1, np.max(Y) + .1], ylabel=f'{maze}\n\n{YKEY}'
+    )
+
+axarr[-1].set(xlabel=KEY)  # ylim=[-.1, 1.1]
+
+f.suptitle(f'Trials split by {KEY}')
+f.tight_layout()
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f"ToT by maze p(R) binned by {KEY} - equal N bins"), svg=True)

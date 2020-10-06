@@ -175,19 +175,27 @@ def plot(mn, std, color, ms, off):
                     lw=2, ms=ms)
 
 
+meandata = {m:[] for m in trials.datasets.keys()}
+
 f, ax  = plt.subplots(figsize=(16, 9))
 for n, (maze, trs) in enumerate(trials.datasets.items()):
-    mn, std = trs.time_out_of_t.mean(), trs.time_out_of_t.std()
-
-    plot(mn, std, paper.maze_colors[maze], 16, 0)
-
     for mouse in trs.mouse_id.unique():
         mouse_trials = trs.loc[trs.mouse_id == mouse]
         mn, std = mouse_trials.time_out_of_t.mean(), mouse_trials.time_out_of_t.std()
 
-        ax.plot([n + .1 + np.random.normal(0, .02)], [mn], 'o-',  color=[.7, .7, .7],
+
+        if mn < 5:
+            ax.plot([n + .1 + np.random.normal(0, .02)], [mn], 'o-',  color=[.7, .7, .7],
                     lw=2, ms=8, zorder=-1)
 
+            meandata[maze].extend(mouse_trials.time_out_of_t)
+
+    mn, std = np.mean(meandata[maze]), np.std(meandata[maze])
+
+    plot(mn, std, paper.maze_colors[maze], 16, 0)
+
+
+sig, p, pairs = run_multi_t_test_bonferroni_one_samp_per_item(meandata)
 
 yoff = 5
 for issig, (m1, m2) in zip(sig, pairs):
