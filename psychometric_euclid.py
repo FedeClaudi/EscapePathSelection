@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from math import sqrt
+import matplotlib.pyplot as plt
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
@@ -15,7 +16,7 @@ from fcutils.plotting.plot_elements import plot_mean_and_error
 from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
 from fcutils.maths.distributions import get_distribution
-
+from fcutils.maths.filtering import smooth_hanning
 
 import paper
 from paper import paths
@@ -120,10 +121,10 @@ for ax, (maze, means) in zip(axarr, mean_eucl_dist.items()):
     left = resample_list_of_arrayes_to_avg_len(eucl_dist_traces[maze]['left'], N=100)
     right = resample_list_of_arrayes_to_avg_len(eucl_dist_traces[maze]['right'], N=100)
 
-    meanl = np.nanmean(left, 0)[3:-3]
-    meanr = np.nanmean(right, 0)[3:-3]
-    stdl = np.nanstd(left, 0)[3:-3]
-    stdr = np.nanstd(right, 0)[3:-3]
+    meanl = smooth_hanning(np.nanmean(left, 0), window_len=5)[6:-6]
+    meanr = smooth_hanning(np.nanmean(right, 0), window_len=5)[6:-6]
+    stdl = smooth_hanning(np.nanstd(left, 0), window_len=5)[6:-6]
+    stdr = smooth_hanning(np.nanstd(right, 0), window_len=5)[6:-6]
 
     plot_mean_and_error(meanl, stdl, ax, color=color, label='left')
     plot_mean_and_error(meanr, stdr, ax, color=desaturate_color(color), label='right')
@@ -135,4 +136,29 @@ for ax, (maze, means) in zip(axarr, mean_eucl_dist.items()):
 
 axarr[0].set(ylabel='Euclidea dist to shelter')
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, f'mean eucl dist trace'))
+save_figure(f, os.path.join(paths.plots_dir, f'mean eucl dist trace'), svg=True)
+
+# %%
+
+"""
+    Plot overall mean of euclidean ratio
+"""
+
+f, ax = plt.subplots(figsize=(16, 9))
+
+
+for n, (maze, means) in enumerate(mean_eucl_dist.items()):
+    meanl = np.mean([np.mean(d) for d in eucl_dist_traces[maze]['left']])
+    meanr = np.mean([np.mean(d) for d in eucl_dist_traces[maze]['right']])
+
+    color = paper.maze_colors[maze]    
+
+
+    ax.bar([n-.15, n+.15], [meanl, meanr], 
+        color=[desaturate_color(color), color], width=.3)
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'real mean eucl dist trace'), svg=True)
+
+
+# %%

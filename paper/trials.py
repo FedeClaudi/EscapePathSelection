@@ -168,7 +168,16 @@ class TrialsLoader(Bayes):
             good_trials = self.datasets[ds].loc[self.datasets[ds].stimulus_uid.isin(goodids)]
             self.datasets[ds] = good_trials
 
-
+    def keep_catwalk_only(self):
+        datasets = self.datasets.copy()
+        for ds, trials in datasets.items():
+            goodids = []
+            for i, trial in trials.iterrows():
+                if trial.body_xy[0, 1] < 230:
+                    goodids.append(trial.stimulus_uid)
+            
+            good_trials = self.datasets[ds].loc[self.datasets[ds].stimulus_uid.isin(goodids)]
+            self.datasets[ds] = good_trials
 
     # ---------------------------------------------------------------------------- #
     #                                   ANALYSIS                                   #

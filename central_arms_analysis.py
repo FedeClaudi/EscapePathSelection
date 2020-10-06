@@ -9,6 +9,8 @@ import pandas as pd
 import os
 from math import sqrt
 from scipy.signal import resample
+import matplotlib.colors  
+from pyinspect import search, print_function
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
@@ -190,18 +192,26 @@ colors = [darkseagreen, salmon, lightseagreen]
 arms = ['Left', 'Center', 'Right']
 
 L, R, C = [], [], [] # store the speed profiles of escapes by arm
+at_center, lengths = [], []
 for i, trial in trials.iterrows():
     if trial.escape_arm == 'left':
         L.append(trial.body_speed)
+        lengths.append(len(trial.body_speed))
     elif trial.escape_arm == 'right':
         R.append(trial.body_speed)
+        lengths.append(len(trial.body_speed))
     else:
+        x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+        at_cent = np.where((x > 460) & (x < 540) & (y > 450) & (y < 550))[0][0]
+        at_center.append(at_cent)
+
         C.append(trial.body_speed)
 
 
 # Normalize escape duration
 L = resample_list_of_arrayes_to_avg_len(L, N=100).mean(0)
 R = resample_list_of_arrayes_to_avg_len(R, N=100).mean(0)
+# C = resample_list_of_arrayes_to_avg_len(C, N=int(np.mean(at_center) * 100 / np.mean(lengths))).mean(0)
 C = resample_list_of_arrayes_to_avg_len(C, N=100).mean(0)
 
 f, ax = plt.subplots(figsize=(16, 9))
@@ -235,9 +245,13 @@ for i, trial in trials.iterrows():
         R['y'].append(trial.body_xy[:, 1])
         R['x'].append(trial.body_xy[:, 0])
     else:
-        C['s'].append(trial.body_speed)
-        C['y'].append(trial.body_xy[:, 1])
-        C['x'].append(trial.body_xy[:, 0])
+        # Get when the mouse reaches center arm end
+        x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+        at_cent = np.where((x > 460) & (x < 540) & (y > 450) & (y < 550))[0][0]
+
+        C['s'].append(trial.body_speed[:at_cent])
+        C['y'].append(y[:at_cent])
+        C['x'].append(x[:at_cent])
 
 
 # Normalize escape duration
@@ -267,12 +281,24 @@ center_trials_idx = [i for i,t in trials.iterrows() if t.escape_arm == 'center']
 idxs = [left_trials_idx, center_trials_idx, right_trials_idx]
 
 f, axarr = plt.subplots(figsize=(9*3, 9), ncols=3)
-
+padding = 15
 for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
     trial = trials.loc[trials.index == tidx].iloc[0]
-    plot_trial_tracking_as_lines(trial, ax, color, 2, color_by_speed=True, cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
+    # Get custom cmap
+    norm=plt.Normalize(0, np.max(trial.body_speed))
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white","#C24B91"])
 
-    ax.set(title=arm, xlim=[430, 560], ylim=[220, 350])
+    # Get when mouse is about to cross borders
+    x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+    stop = np.where((x < 400 + padding) | (x > 600 - padding) | (y > 430 - padding))[0][0]
+
+    # Plot
+    plot_trial_tracking_as_lines(trial, ax,color, 4, color_by_speed=True,  
+            stop_frame = stop,
+            thick_lw=8, head_size=500, outline_width=3,
+            cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
+
+    ax.set(title=arm, xlim=[400, 600], ylim=[220, 450])
     ax.axis('off')
 save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=True)
 

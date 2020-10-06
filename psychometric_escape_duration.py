@@ -40,7 +40,7 @@ params = dict(
 trials = TrialsLoader(**params)
 trials.load_psychometric()
 trials.remove_change_of_mind_trials() # remove silly trials
-
+trials.keep_catwalk_only()
 
 # %%
 
@@ -95,29 +95,32 @@ axarr[1].axhline(1, ls='--', zorder=-1, lw=2, color=[.6, .6, .6])
 
 
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, f"escape duration by path"))
+save_figure(f, os.path.join(paths.plots_dir, f"escape duration by path"), svg=True)
 
 ax.set(title='Fast escape ratio per maze', ylabel='L/R', xticklabels=trials.datasets.keys(),  xticks=[0, 1, 2, 3, 4,],)
 clean_axes(f2)
-save_figure(f2, os.path.join(paths.plots_dir, f"lowperc_escape duration ratio_by_arm"))
+save_figure(f2, os.path.join(paths.plots_dir, f"lowperc_escape duration ratio_by_arm"), svg=True)
 
 
 # %%
 """
     Look at distribution of out-of-T times. 
 """
+def get_lr_stats(data):
+    left = data.loc[data.escape_arm == 'left'].time_out_of_t.mean()
+    right = data.loc[data.escape_arm == 'right'].time_out_of_t.mean()
 
+    lstd = data.loc[data.escape_arm == 'left'].time_out_of_t.std()
+    rstd = data.loc[data.escape_arm == 'right'].time_out_of_t.std()
+
+    return left, right, lstd, rstd
 
 f, ax  = plt.subplots(figsize=(16, 9))
 
 
 meandata = {}
 for n, (maze, trs) in enumerate(trials.datasets.items()):
-    left = trs.loc[trs.escape_arm == 'left'].time_out_of_t.mean()
-    right = trs.loc[trs.escape_arm == 'right'].time_out_of_t.mean()
-
-    lstd = trs.loc[trs.escape_arm == 'left'].time_out_of_t.std()
-    rstd = trs.loc[trs.escape_arm == 'right'].time_out_of_t.std()
+    left, right, lstd, rstd = get_lr_stats(trs)
 
     meandata[maze] = trs.time_out_of_t.values
 
@@ -125,6 +128,15 @@ for n, (maze, trs) in enumerate(trials.datasets.items()):
                     ms=16, lw=6, elinewidth =2)
     ax.plot([n-.15, n+.15], [left, right], 'o-',  color=paper.maze_colors[maze],
                     lw=6, ms=16)
+
+    # Look at individual mice:
+    for mouse in trs.mouse_id.unique():
+        mouse_trials = trs.loc[trs.mouse_id == mouse]
+        left, right, lstd, rstd = get_lr_stats(mouse_trials)
+
+        ax.scatter([n-.20 + np.random.normal(0, .02), n+.20 + np.random.normal(0, .02)], 
+                    [left, right], zorder=-1, ec='k', lw=1, s=40,
+                    color=desaturate_color(paper.maze_colors[maze]), alpha=.8)
 
 
 # Run multi test bonferroni
@@ -150,3 +162,11 @@ _ = ax.set(title='Time out of threat platform by maze and arm', ylabel='mean dur
 
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"))
+
+# %%
+
+# %%
+
+# %%
+
+# %%

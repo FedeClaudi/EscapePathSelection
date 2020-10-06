@@ -99,6 +99,7 @@ _ = ax.set(title="p(R) vs arm of origin", ylabel="p(R|origin)", xlabel="maze|arm
                 )
 clean_axes(f)
 
+save_figure(f, os.path.join(paths.plots_dir, f'arm of origin effect'), svg=True)
 
 
 
@@ -169,14 +170,14 @@ res = {ds: pd.DataFrame(d) for ds, d in res.items()}
 
 
 # Plot avg occupancy normalised for exploration of each mouse
-f, ax = plt.subplots(ncols = 1)
+f, ax = plt.subplots(ncols = 1, figsize=(16, 9))
 for n, (ds, data) in enumerate(res.items()):
     ball_and_errorbar(n -.1, data.left.mean(), data.left.values, 
                     ax, orientation='vertical',
-                    s=250, color=paper.maze_colors[ds])
+                    s=250, color=desaturate_color(paper.maze_colors[ds]))
     ball_and_errorbar(n + .1, data.right.mean(), data.right.values, 
                     ax, orientation='vertical',
-                    s=250, color=desaturate_color(paper.maze_colors[ds]))
+                    s=250, color=paper.maze_colors[ds])
 
     ax.plot([n -.1, n+.1], [data.left.mean(), data.right.mean()], 
                     lw = 3, ls="--", color=paper.maze_colors[ds])
@@ -190,6 +191,7 @@ if NORM_BY_MAZE_ASYM:
     ax.set(ylabel="Length normalised occupancy")
 
 clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, f'arm expl arm occupancy'), svg=True)
 
 
 # %%

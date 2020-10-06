@@ -45,7 +45,10 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
                 _col = colorMap(speed[i], name=cmap, vmin=0, vmax=speed.max())
                 line_col = _col
             else:
-                line_col = color
+                if not (color, list):
+                    line_col = color
+                else:
+                    line_col = color[i]
 
             # mark head
             ax.scatter(nx[i], ny[i], color=line_col, lw=outline_width*.75, zorder=3, 
@@ -54,14 +57,18 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
             # Plot body
             ax.plot([nx[i], bx[i]], [ny[i], by[i]], c=line_col, lw=thick_lw, zorder=3,
                             solid_capstyle='round')
-            ax.plot([bx[i], tx[i]], [by[i], ty[i]], c=line_col, lw=thick_lw, zorder=2,
+            ax.plot([bx[i], tx[i]], [by[i], ty[i]], c=line_col, lw=thick_lw, zorder=3,
                             solid_capstyle='round')
 
     # Plot all frames
-    ax.plot([nx[:stop_frame], bx[:stop_frame]], [ny[:stop_frame], by[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
-                    solid_capstyle='round')
-    ax.plot([bx[:stop_frame], tx[:stop_frame]], [by[:stop_frame], ty[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
-                    solid_capstyle='round')
+    if isinstance(color, list):
+        color = color[0]
+    
+    if thin_alpha:
+        ax.plot([nx[:stop_frame], bx[:stop_frame]], [ny[:stop_frame], by[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
+                        solid_capstyle='round')
+        ax.plot([bx[:stop_frame], tx[:stop_frame]], [by[:stop_frame], ty[:stop_frame]], color=color, lw=thin_lw, alpha=thin_alpha, zorder=0,
+                        solid_capstyle='round')
 
 
 def resample_list_of_arrayes_to_avg_len(lst, N=None, interpolate=False):

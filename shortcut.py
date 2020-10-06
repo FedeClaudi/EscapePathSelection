@@ -30,7 +30,8 @@ import paper
 from paper import paths
 from paper.trials import TrialsLoader
 from paper.helpers.mazes_stats import get_mazes
-from paper.utils.misc import resample_list_of_arrayes_to_avg_len
+from paper.utils.misc import resample_list_of_arrayes_to_avg_len, plot_trial_tracking_as_lines
+
 
 
 # %%
@@ -249,6 +250,7 @@ for ax, sess in zip(axarr, keep_sessions):
         if escape: 
             col = colors[condition]
         else:
+            continue
             col = desaturate_color(colors[condition])
 
         ax.plot(trial.x, trial.y, color=colors[condition], lw=lw, zorder=90)
@@ -280,9 +282,9 @@ clean_axes(f)
 clean_axes(f2)
 clean_axes(f3)
 
-save_figure(f, os.path.join(save_fld, 'all_trials'))
-save_figure(f2, os.path.join(save_fld, 'all_trials_by_cat'))
-save_figure(f3, os.path.join(save_fld, 'all_trials_by_cat_only_block'))
+save_figure(f, os.path.join(save_fld, 'all_trials'), svg=True)
+save_figure(f2, os.path.join(save_fld, 'all_trials_by_cat'), svg=True)
+save_figure(f3, os.path.join(save_fld, 'all_trials_by_cat_only_block'), svg=True)
 
 
 
@@ -301,22 +303,22 @@ save_figure(f3, os.path.join(save_fld, 'all_trials_by_cat_only_block'))
 c2trials = trials.loc[trials.condition == 2]
 
 
-SHOW_TAIL = False
-PLOT = False
+SHOW_TAIL = True
+PLOT = True
 
 f, axarr = plt.subplots(ncols=5, nrows=3, figsize=(25, 14), sharex=True, sharey=True)
 f.suptitle('Tracking at block for condition 2 trials'
 )
 for ax in axarr.flat: ax.axis('off')
 
-f2, axarr2 = plt.subplots(ncols=5, nrows=3, figsize=(25, 14),
-                subplot_kw=dict(projection='polar'))
-f2.suptitle('Orienting between at_bock and moved_away')
+# f2, axarr2 = plt.subplots(ncols=5, nrows=3, figsize=(25, 14),
+#                 subplot_kw=dict(projection='polar'))
+# f2.suptitle('Orienting between at_bock and moved_away')
 
-for ax in axarr2.flat: 
-    ax.axis('off')
-    ax.set_theta_direction(-1)
-    ax.set_theta_offset(np.pi/2)
+# for ax in axarr2.flat: 
+#     ax.axis('off')
+#     ax.set_theta_direction(-1)
+#     ax.set_theta_offset(np.pi/2)
 
 
 
@@ -327,8 +329,9 @@ boxcolors = [indianred, orange, seagreen, seagreen, orange,
 
 
 shelter_angles, at_block_angles, at_away_angles = [], [], []
+duration = []
 # inset_axes = []
-for ax, ax2, (i, trial), boxcolor in zip(axarr.flat, axarr2.flat, c2trials.iterrows(), boxcolors):
+for ax, (i, trial), boxcolor in zip(axarr.flat, c2trials.iterrows(), boxcolors):
     # Get when the mouse arrives at the block
     at_block = int(trial.at_block)
     if at_block > 0:
@@ -350,35 +353,53 @@ for ax, ax2, (i, trial), boxcolor in zip(axarr.flat, axarr2.flat, c2trials.iterr
                                     shelter_center[0]-trial.x[at_block],
                                     shelter_center[1]-trial.y[at_block]))
 
+    print(at_block, moved_away)
+    if at_block > 0:
+        duration.append((moved_away - at_block) / 40)
+
+    k = 30
+    trial['neck_xy'] = np.stack([trial.neckx, trial.necky]).T[at_block-k:moved_away + k + 15]
+    trial['tail_xy'] = np.stack([trial.tailx, trial.taily]).T[at_block-k:moved_away + k + 15]
+    trial['body_xy'] = np.stack([trial.x, trial.y]).T[at_block-k:moved_away + k + 15]
+    trial['body_speed'] = trial.speed[at_block-k:moved_away + k + 15]
+
     # Plot colored lines    
     idxs = np.where(trial.block_distance < 150)[0]
-    trialscolors = makePalette(powderblue, salmon, len(idxs))
+    try:
+        trialscolors = list(makePalette(powderblue, salmon, len(trial['neck_xy'])))
+    except :
+        continue
+
     if PLOT:
-        for idx, col in zip(idxs, trialscolors):
-            if idx == at_block or idx == moved_away:
-                lw, alpha, zorder, border = 6, 1, 99, True 
+        try:
+            plot_trial_tracking_as_lines(trial, ax, trialscolors, 8, outline_color=[.2, .2, .2], thick_lw=3, thin_lw=1.5) 
+        except :
+            pass
+        # for idx, col in zip(idxs, trialscolors):
+        #     if idx == at_block or idx == moved_away:
+        #         lw, alpha, zorder, border = 6, 1, 99, True 
 
 
-            elif idx > at_block and idx % 30 == 0:
-                # continue
-                lw, alpha, zorder, border = 4, 1, 90, True 
-            else:
-                lw, alpha, zorder, border = 4, .6, 80, False
+        #     elif idx and idx % 12 == 0:
+        #         # continue
+        #         lw, alpha, zorder, border = 4, 1, 90, True 
+        #     else:
+        #         lw, alpha, zorder, border = 4, .6, 80, False
 
-            if border:
-                # Plot dark border
-                if SHOW_TAIL:
-                    ax.plot([trial.tailx[idx], trial.x[idx]], [trial.taily[idx], trial.y[idx]], 
-                                    color='k', lw=lw+1, alpha=1, zorder=85, solid_capstyle='round')
-                ax.plot([trial.x[idx], trial.neckx[idx]], [trial.y[idx], trial.necky[idx]], 
-                                color='k', lw=lw+1, alpha=1, zorder=85, solid_capstyle='round')
+        #     if border:
+        #         # Plot dark border
+        #         if SHOW_TAIL:
+        #             ax.plot([trial.tailx[idx], trial.x[idx]], [trial.taily[idx], trial.y[idx]], 
+        #                             color='k', lw=lw+1, alpha=1, zorder=85, solid_capstyle='round')
+        #         ax.plot([trial.x[idx], trial.neckx[idx]], [trial.y[idx], trial.necky[idx]], 
+        #                         color='k', lw=lw+1, alpha=1, zorder=85, solid_capstyle='round')
 
-            # Plot colored line
-            if SHOW_TAIL:
-                ax.plot([trial.tailx[idx], trial.x[idx]], [trial.taily[idx], trial.y[idx]], 
-                                color=col, lw=lw, alpha=alpha, zorder=zorder, solid_capstyle='round')
-            ax.plot([trial.x[idx], trial.neckx[idx]], [trial.y[idx], trial.necky[idx]], 
-                            color=col, lw=lw, alpha=alpha, zorder=zorder, solid_capstyle='round')
+        #     # Plot colored line
+        #     if SHOW_TAIL:
+        #         ax.plot([trial.tailx[idx], trial.x[idx]], [trial.taily[idx], trial.y[idx]], 
+        #                         color=col, lw=lw, alpha=alpha, zorder=zorder, solid_capstyle='round')
+        #     ax.plot([trial.x[idx], trial.neckx[idx]], [trial.y[idx], trial.necky[idx]], 
+        #                     color=col, lw=lw, alpha=alpha, zorder=zorder, solid_capstyle='round')
 
 
     # Add radius circle
@@ -388,45 +409,45 @@ for ax, ax2, (i, trial), boxcolor in zip(axarr.flat, axarr2.flat, c2trials.iterr
         ax.add_patch(circ)
 
     # Add ax border based on class
-    ax.set(xlim=[220, 400], ylim=[410, 580], title=trial.stimulus_uid)
+    ax.set(xlim=[220, 420], ylim=[410, 600], title=trial.stimulus_uid)
     # sh = Rectangle([220+5, 410+5], 400-220-10, 580-410-10, lw=4,
     #                     facecolor=white, ec=boxcolor, alpha=1, zorder=15 )
     # ax.add_patch(sh)
 
-    # Fig2 add scatter
-    if at_block > 0:
-        th = np.radians(30)
+    # # Fig2 add scatter
+    # if at_block > 0:
+    #     th = np.radians(30)
 
-        x = np.arange(len(trial.x[at_block:moved_away]))
-        theta = np.radians(trial.orientation[at_block:moved_away])
-        # ax2.plot(theta, x, color='k', lw=.75)
-        c = makePalette(powderblue, salmon, len(x)+1)
+    #     x = np.arange(len(trial.x[at_block:moved_away]))
+    #     theta = np.radians(trial.orientation[at_block:moved_away])
+    #     # ax2.plot(theta, x, color='k', lw=.75)
+    #     c = makePalette(powderblue, salmon, len(x)+1)
 
-        # plot lines
-        ax2.plot([0, theta[0]], [0, x[-1]], lw=2, color='k', zorder=-1)
-        ax2.plot([0, theta[0]-np.radians(180)], [0, x[-1]], lw=2, color='k', zorder=-1)
+    #     # plot lines
+    #     ax2.plot([0, theta[0]], [0, x[-1]], lw=2, color='k', zorder=-1)
+    #     ax2.plot([0, theta[0]-np.radians(180)], [0, x[-1]], lw=2, color='k', zorder=-1)
         
-        ax2.plot([0, theta[0]+th], [0, x[-1]], lw=1, ls='--', color='k', zorder=-1)
-        ax2.plot([0, theta[0]-th], [0, x[-1]], lw=1, ls='--', color='k', zorder=-1)
+    #     ax2.plot([0, theta[0]+th], [0, x[-1]], lw=1, ls='--', color='k', zorder=-1)
+    #     ax2.plot([0, theta[0]-th], [0, x[-1]], lw=1, ls='--', color='k', zorder=-1)
 
-        ax2.plot([0, np.radians(shelter_angles[-1])], [0, x[-1]/2], lw=2, color=darkred, zorder=-1)
+    #     ax2.plot([0, np.radians(shelter_angles[-1])], [0, x[-1]/2], lw=2, color=darkred, zorder=-1)
 
-        # Scatter
-        ax2.scatter(theta, x, color=[.4, .4, .4], zorder=9, s=150)
-        ax2.scatter(theta, x, c=c, zorder=10, s=75)
+    #     # Scatter
+    #     ax2.scatter(theta, x, color=[.4, .4, .4], zorder=9, s=150)
+    #     ax2.scatter(theta, x, c=c, zorder=10, s=75)
 
-        # Get first ang displacement above th
-        dtheta = theta - theta[0]
-        try:
-            turn = np.where(np.abs(dtheta) >= th)[0][0]
-            ax2.scatter(theta[turn], x[turn], color=darkred, lw=2, ec='k', s=165, zorder=20)
-        except:
-            pass
+    #     # Get first ang displacement above th
+    #     dtheta = theta - theta[0]
+    #     try:
+    #         turn = np.where(np.abs(dtheta) >= th)[0][0]
+    #         ax2.scatter(theta[turn], x[turn], color=darkred, lw=2, ec='k', s=165, zorder=20)
+    #     except:
+    #         pass
         
-        # Style ax
-        ax2.axis('on')
-        ax2.set(xticks=np.radians([0, 90, 180, 270]), yticks=[])
-        ax2.set_title(trial.stimulus_uid, pad=20)
+    #     # Style ax
+    #     ax2.axis('on')
+    #     ax2.set(xticks=np.radians([0, 90, 180, 270]), yticks=[])
+    #     ax2.set_title(trial.stimulus_uid, pad=20)
 
 
 
@@ -445,12 +466,28 @@ for ax, ax2, (i, trial), boxcolor in zip(axarr.flat, axarr2.flat, c2trials.iterr
 # pax.set_theta_direction(-1)
 # pax.set(title='Angles at block and at away')
 
-set_figure_subplots_aspect(wspace=.5, hspace=.7, top=.9, bottom=.1)
-save_figure(f, os.path.join(save_fld, 'con2_trials_detailed'))
-save_figure(f2, os.path.join(save_fld, 'con2_trials_detailed_angles'))
+# set_figure_subplots_aspect(wspace=.5, hspace=.7, top=.9, bottom=.1)
+save_figure(f, os.path.join(save_fld, 'con2_trials_detailed'), svg=True)
+# save_figure(f2, os.path.join(save_fld, 'con2_trials_detailed_angles'), svg=True)
 
 
 
 
 # %%
 
+"""
+    Plot average duration of moved away
+"""
+from fcutils.plotting.plot_distributions import plot_kde
+
+f, ax = plt.subplots(figsize=(5, 12))
+
+# ax.scatter(duration, np.random.normal(0, .0, len(duration)),  s=500, lw=4, edgecolors='g', color='g', zorder=100, marker='|')
+
+# plot_kde(ax=ax, data=duration, kde_kwargs=dict(bw=.5))
+
+ax.hist(duration, bins=4)
+
+
+clean_axes(f)
+save_figure(f, os.path.join(save_fld, 'con2_trials_duration'), svg=True)

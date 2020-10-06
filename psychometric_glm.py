@@ -16,12 +16,12 @@ from math import sqrt
 import statsmodels.api as sm
 from tqdm import tqdm
 from random import sample
-from sklearn.metrics import mean_squared_error 
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
-from fcutils.plotting.plot_elements import hline_to_point, vline_to_point
+from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, plot_line_outlined
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
@@ -281,7 +281,7 @@ save_figure(f, os.path.join(paths.plots_dir, 'GLM_mice_crossval'))
         get p(R) for ecah maze for the train and test sets, 
         train to predict p(R) from maze on train and evaluate on test.
 """
-predictors = ['geodesic_ratio', 'angles_ratio', 'euclidean_ratio']
+predictors = ['geodesic_ratio']
 
 # ----------------------- Get a DF with all the trials ----------------------- #
 data = {'outcome':[], 'maze':[]}
@@ -302,6 +302,7 @@ ntrials = len(data)
 coeffs = {pred: [] for pred in predictors}
 coeffs['const'] = []
 TRUE, PREDICTION = [], []
+R2 = []
 f, ax = plt.subplots(figsize=(10, 10))
 for i in tqdm(np.arange(500)):
     # Split train/test
@@ -357,6 +358,7 @@ for i in tqdm(np.arange(500)):
 
     TRUE.extend(list(test.pr))
     PREDICTION.extend(list(res.predict(testexog)))
+    R2.append(r2_score(list(test.pr), list(res.predict(testexog))))
 
     for par, val in res.params.iteritems():
         coeffs[par].append(val)
@@ -378,7 +380,7 @@ mse = round(mean_squared_error(TRUE, PREDICTION), 4)
 ax.set(title=f'test set predictions [mse: {mse}]\n predictors: {predictors}', xlabel='actual p(R)', ylabel='predicted p(R)')
 clean_axes(f)
 
-save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval'))
+save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval'), svg=True)
 
 
 # ---------------------------- Plot coeffs spread ---------------------------- #
@@ -394,9 +396,17 @@ clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_crossval_coefffs'))
 
 
+
 # %%
-f, ax = plt.subplots()
-ax.scatter(mazes_stats.euclidean_ratio, mazes_stats.geodesic_ratio)
 
+# ------------------------------ Plot R2 scores ------------------------------ #
+f, ax = plt.subplots(figsize=(10, 10))
 
+ax.hist(R2, bins=20, color=[.6, .6, .6], density=True, zorder=-10)
+plot_line_outlined(ax, [np.mean(R2), np.mean(R2)], [0, 4.5], outline_color='w', color=[.2, .2, .2], lw=4, outline=0)
+
+ax.set(ylabel='density', xlabel='$r**2$')
+
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'GLM_trials_r_squared_geoonly'), svg=True)
 # %%

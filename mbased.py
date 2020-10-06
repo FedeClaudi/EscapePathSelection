@@ -269,7 +269,7 @@ axarr.flat[-1].set(ylabel='p(short)',xticks=[0, 1, 2], xticklabels=['bsl', 'blk+
 
 _ = f.suptitle(f'Model based V2 trials: {toplot}')
 clean_axes(f)
-save_figure(f, os.path.join(savepath, f'MBV2_trials_{toplot}'))
+save_figure(f, os.path.join(savepath, f'MBV2_trials_{toplot}'), svg=True)
 set_figure_subplots_aspect(wspace=.5, hspace=.5)
 
 # %%

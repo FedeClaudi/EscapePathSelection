@@ -512,6 +512,36 @@ _ = ax.set(title='Escape duration by path vs trips durations', ylabel='mean dura
 clean_axes(f)
 save_figure(f, os.path.join(plots_dir, "trips duration vs escape duration "))
 
+
+# %%
+"""
+    Plot path length for escape on left vs right arm on each maze
+"""
+
+f, axarr = plt.subplots(figsize=(20, 9), sharex=True, sharey=True, ncols=5)
+
+
+maze_stats = {m:v for m,v in get_mazes().items() if m in trials.datasets.keys()}
+
+for n, (maze, stats) in enumerate(maze_stats.items()):
+    L, R = stats['left_path_length'], stats['right_path_length']
+
+    axarr[n].bar([-.15, +.15], [L, R], lw=2, ec=[.2, .2, .2],  
+            color=[desaturate_color(paper.maze_colors[maze]), paper.maze_colors[maze]], zorder=99, width=.3)
+
+    axarr[n].set(xticks=[])
+
+# Cleanup axes
+_ = axarr[0].set(ylabel='Path length (cm)')
+
+clean_axes(f)
+save_figure(f, os.path.join(plots_dir, "path length by maze"), svg=True)
+
+
+
+
+
+
 # %%
 """
     Plot explorations occupancies as heatmaps
