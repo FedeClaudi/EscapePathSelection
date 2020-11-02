@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from math import sqrt
+import pyinspect as pi
+from scipy import stats
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
@@ -106,21 +108,29 @@ save_figure(f2, os.path.join(paths.plots_dir, f"lowperc_escape duration ratio_by
 """
     Look at distribution of out-of-T times. 
 """
-def get_lr_stats(data):
-    left = data.loc[data.escape_arm == 'left'].time_out_of_t.mean()
-    right = data.loc[data.escape_arm == 'right'].time_out_of_t.mean()
+def get_lr_stats(data, norm=True):
+    l = data.loc[data.escape_arm == 'left'].time_out_of_t
+    r = data.loc[data.escape_arm == 'right'].time_out_of_t
 
-    lstd = data.loc[data.escape_arm == 'left'].time_out_of_t.std()
-    rstd = data.loc[data.escape_arm == 'right'].time_out_of_t.std()
+    if norm:
+        r = r/l.mean()
+        l = l/l.mean()
 
-    return left, right, lstd, rstd
+    real_left = data.loc[data.escape_arm == 'left'].time_out_of_t.mean()
+    left = l.mean()
+    right = r.mean()
+
+    lstd = l.std()
+    rstd = r.std()
+
+    return left, right, real_left, lstd, rstd
 
 f, ax  = plt.subplots(figsize=(16, 9))
 
 
 meandata = {}
 for n, (maze, trs) in enumerate(trials.datasets.items()):
-    left, right, lstd, rstd = get_lr_stats(trs)
+    left, right, real_left, lstd, rstd = get_lr_stats(trs)
 
     meandata[maze] = trs.time_out_of_t.values
 
@@ -132,10 +142,13 @@ for n, (maze, trs) in enumerate(trials.datasets.items()):
     # Look at individual mice:
     for mouse in trs.mouse_id.unique():
         mouse_trials = trs.loc[trs.mouse_id == mouse]
-        left, right, lstd, rstd = get_lr_stats(mouse_trials)
+        _left, right, _, lstd, rstd = get_lr_stats(mouse_trials, norm=True)
+
+        # right = right / real_left
+        # _left = _left / real_left
 
         ax.scatter([n-.20 + np.random.normal(0, .02), n+.20 + np.random.normal(0, .02)], 
-                    [left, right], zorder=-1, ec='k', lw=1, s=40,
+                    [_left, right], zorder=-1, ec='k', lw=1, s=60,
                     color=desaturate_color(paper.maze_colors[maze]), alpha=.8)
 
 
@@ -149,7 +162,7 @@ x_offsets = dict(
     maze6 = 4
 )
 
-yoff = 5
+yoff = 1.85
 for issig, (m1, m2) in zip(sig, pairs):
     if issig:
         print(m1, m2)
@@ -161,7 +174,7 @@ _ = ax.set(title='Time out of threat platform by maze and arm', ylabel='mean dur
             xticks=[0, 1, 2, 3, 4,], xticklabels=[maze for maze in trials.datasets.keys()])
 
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"))
+save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze and arm"), svg=True)
 
 # %%
 """
@@ -211,8 +224,34 @@ _ = ax.set(title='Time out of threat platform by maze and arm', ylabel='mean dur
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, f"time out of T by maze"))
 
-# %%
+
+# Run one way anove
+fvalue, pvalue = stats.f_oneway(*meandata.values())
+if pvalue < 0.005:
+    pi.ok('One way anova: significant', f'fval: {fvalue}, pval: {pvalue}')
+else:
+    pi.warn('One way anova: NOT significant', f'fval: {fvalue}, pval: {pvalue}')
 
 # %%
+stacked = {'maze':[], 'val':[]}
 
+for m, dt in meandata.items():
+    for v in dt:
+        stacked['maze'].append(m)
+        stacked['val'].append(v)
+
+stacked = pd.DataFrame(stacked)
+stacked.head()
 # %%
+from statsmodels.stats.multicomp import (pairwise_tukeyhsd,
+                                         MultiComparison)
+
+# Set up the data for comparison (creates a specialised object)
+MultiComp = MultiComparison(stacked['val'],
+                            stacked['maze'])
+
+# Show all pair-wise comparisons:
+
+# Print the comparisons
+
+print(MultiComp.tukeyhsd().summary())

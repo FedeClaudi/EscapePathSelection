@@ -10,10 +10,11 @@ import os
 from math import sqrt
 from scipy.signal import resample
 import matplotlib.colors  
+from scipy.stats import sem as _sem
 
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure
 from fcutils.plotting.colors import *
-from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, plot_shaded_withline
+from fcutils.plotting.plot_elements import hline_to_point, vline_to_point, plot_shaded_withline, plot_mean_and_error
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
@@ -187,7 +188,10 @@ save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm occupancy explor
 """
     Plot example tracking for M4 with dead end arm looking at speed etc
 """
-colors = [darkseagreen, salmon, lightseagreen]
+
+N_bins = 10000
+
+colors = [darkseagreen, lightseagreen]   #  salmon was for center
 arms = ['Left', 'Center', 'Right']
 
 L, R, C = [], [], [] # store the speed profiles of escapes by arm
@@ -196,34 +200,45 @@ for i, trial in trials.iterrows():
     if trial.escape_arm == 'left':
         L.append(trial.body_speed)
         lengths.append(len(trial.body_speed))
+
     elif trial.escape_arm == 'right':
         R.append(trial.body_speed)
         lengths.append(len(trial.body_speed))
-    else:
-        x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
-        at_cent = np.where((x > 460) & (x < 540) & (y > 450) & (y < 550))[0][0]
-        at_center.append(at_cent)
 
-        C.append(trial.body_speed)
+    # else:
+    #     x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+    #     at_cent = np.where((x > 460) & (x < 540) & (y > 450) & (y < 550))[0][0]
+    #     at_center.append(at_cent)
+
+    #     C.append(trial.body_speed)
 
 
 # Normalize escape duration
-L = resample_list_of_arrayes_to_avg_len(L, N=100).mean(0)
-R = resample_list_of_arrayes_to_avg_len(R, N=100).mean(0)
+L_trace = resample_list_of_arrayes_to_avg_len(L, N=N_bins)
+R_trace = resample_list_of_arrayes_to_avg_len(R, N=N_bins)
+
+L = L_trace.mean(0)
+R = R_trace.mean(0)
+
+L_sem = _sem(L_trace)
+R_sem = _sem(R_trace)
+
 # C = resample_list_of_arrayes_to_avg_len(C, N=int(np.mean(at_center) * 100 / np.mean(lengths))).mean(0)
-C = resample_list_of_arrayes_to_avg_len(C, N=100).mean(0)
+# C = resample_list_of_arrayes_to_avg_len(C, N=100).mean(0)
 
 f, ax = plt.subplots(figsize=(16, 9))
-for arm, speed, color in zip(arms, [L, C, R], colors):
+for arm, speed, sem,  color in zip(arms, [L, R], [L_sem, R_sem], colors):
     # ax.plot(speed, color=color, lw=2, label=arm)
-    plot_shaded_withline(ax, np.arange(len(speed)), speed, color=color, label=arm, lw=4, alpha=.05)
+    # plot_shaded_withline(ax, np.arange(len(speed)), speed, color=color, label=arm, lw=4, alpha=.05)
+
+    plot_mean_and_error(speed, sem, ax, color=color, label='arm', err_alpha=.1)
 
 ax.legend() 
 ax.set(title='M4 dead end | escape speed by arm ',
-        xticks=[0, 100], xticklabels=['start', 'end'],
+        xticks=[0, N_bins], xticklabels=['start', 'end'],
         ylabel='speed')
 clean_axes(f)
-save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end escape speed by arm'), svg=True)
+save_figure(f, os.path.join(paths.plots_dir, f'M4 deaded end escape speed by arm N bins {N_bins}'), svg=True)
 
 # %%
 """
@@ -294,17 +309,18 @@ for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
 
     # Get when mouse is about to cross borders
     x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
-    stop = np.where((x < 400 + padding) | (x > 600 - padding) | (y > 430 - padding))[0][0]
+    # stop = np.where((x < 400 + padding) | (x > 600 - padding) | (y > 430 - padding))[0][0]
+    stop = None
 
     # Plot
-    plot_trial_tracking_as_lines(trial, ax, color, 4, color_by_speed=True,  
+    plot_trial_tracking_as_lines(trial, ax, color, 10, color_by_speed=True,  
             stop_frame = stop,
-            thick_lw=8, head_size=500, outline_width=3,
+            thick_lw=6, head_size=300, outline_width=3,
             cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
 
 
 
-    ax.set(title=arm, xlim=[400, 600], ylim=[220, 450])
+    # ax.set(title=arm, xlim=[400, 600], ylim=[220, 450])
 
     # make colormap
     divider = make_axes_locatable(ax)
@@ -317,21 +333,6 @@ for arm, tidx, color, cmap, ax in zip(arms, idxs, colors, cmaps, axarr):
     ax.axis('off')
 save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end arm escape speed by arm example'), svg=True)
 
-# %%
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-
-fig, ax = plt.subplots(figsize=(6, 1))
-fig.subplots_adjust(bottom=0.5)
-
-cmap = mpl.cm.cool
-norm = mpl.colors.Normalize(vmin=5, vmax=10)
-
-cb1 = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                norm=norm,
-                                orientation='horizontal')
-cb1.set_label('Some Units')
-fig.show()
 
 # %%
 """
@@ -360,3 +361,66 @@ clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, 'M4 deaded end time of out of T'), svg=True)
 
 # %%
+"""
+    Manual scoring of reaction times
+"""
+
+
+for n, (i, trial) in enumerate(trials.iterrows()):
+    if react_time_frame[trial.stimulus_uid] is not None: 
+        continue
+
+    f, ax = plt.subplots(figsize=(16, 9))
+
+    # Get custom cmap
+    norm=plt.Normalize(0, 15)
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white","#C24B91"])
+    cmap.set_over("#C24B91")
+    cmap.set_under("white")
+
+    # Get when mouse is about to cross borders
+    x, y = trial.body_xy[:, 0], trial.body_xy[:, 1]
+    stop = np.where((x < 400 + padding) | (x > 600 - padding) | (y > 430 - padding))[0][0]
+
+    # Plot
+    plot_trial_tracking_as_lines(trial, ax, color, 1, color_by_speed=True,  
+            stop_frame = stop,
+            thick_lw=1, head_size=75, outline_width=1,
+            cmap=cmap, outline_color=[.4, .4, .4], thin_alpha=0)
+        
+    s, e  = 5, 10
+    plot_trial_tracking_as_lines(trial, ax, 'g', 1, 
+            color_by_speed=False,  
+            start_frame = s,
+            stop_frame = e,
+            thick_lw=4, 
+            head_size=150, 
+            outline_width=1,
+            thin_alpha=0)
+
+    ax.set(title=trial.stimulus_uid, xlim=[400, 600], ylim=[220, 450])
+    print(f'trial {n} if {len(trials)}  ', trial.stimulus_uid)
+    break
+
+import pickle
+with open('M4deadend_rt.pkl', 'wb') as f:
+    pickle.dump(react_time_frame, f)
+# %%
+with open('M4deadend_rt.pkl', 'rb') as f:
+    react_time_frame = pickle.read(f)
+
+trials['react_time_frame'] = [v for v in react_time_frame.values()]
+trials['react_time_s'] = trials['react_time_frame'] / trials['fps']
+
+f, ax = plt.subplots(figsize=(16, 9))
+colors = [darkseagreen, salmon, lightseagreen]
+
+bins = 12
+for arm, color in zip(['left', 'center', 'right'], colors):
+    trs = trials.loc[trials.escape_arm == arm]
+    bins  = ax.hist(trs['react_time_s'], bins=bins, color=color, density=True, alpha=.3)
+    bins = bins[1]
+    ax.hist(trs['react_time_s'], bins=bins, color=color, density=True, alpha=1, histtype='step', lw=3, label=arm)
+
+ax.legend()
+_ = ax.set(xlabel='time (s)', ylabel='density')

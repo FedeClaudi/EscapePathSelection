@@ -73,19 +73,18 @@ _mazes = get_mazes()
 # ---------------------------------------------------------------------------- #
 
 # ? Options
-PLOT_INDIVIDUALS = False
-ADD_M6 = True
+PLOT_INDIVIDUALS = True
+ADD_M6 = False
 
 # ------------------------------- Prepare Data ------------------------------- #
+keys = list(trials.datasets.keys())
 if not ADD_M6:
+    keys = keys[:-1]
     mazes = {k:m for k,m in _mazes.items() if k in paper.psychometric_mazes}
-
-    X_labels = list(trials.datasets.keys())[:-1]
     X = [maze['ratio'] for maze in mazes.values()]
     Y = grouped_pRs['mean'].values[:-1]
 
     Y_err = [sqrt(v)*2 for v in grouped_pRs['sigmasquared']][:-1]
-    colors = [paper.maze_colors[m] for m in X_labels]
 
     xfit = X
     yfit = Y
@@ -95,17 +94,18 @@ if not ADD_M6:
 
 else:
     mazes = {k:m for k,m in _mazes.items() if k in paper.five_mazes}
-    X_labels = list(trials.datasets.keys())
     X = np.array([maze['ratio'] for maze in mazes.values()])
     Y = grouped_pRs['mean'].values
     Y_err = [sqrt(v)*2 for v in grouped_pRs['sigmasquared']]
-    colors = [paper.maze_colors[m] for m in X_labels]
 
     xfit = X[:-1]
     yfit = Y[:-1]
     yerrfit = Y_err[:-1]
 
     hierarchical = hierarchical_pRs
+
+X_labels = [f'm{m[-1]}\n{round(mazes[m]["ratio"], 2)}' for m in keys]
+colors = [paper.maze_colors[m] for m in  keys]
 
 
 # Colors
@@ -126,7 +126,7 @@ for x,y,yerr,color in zip(X, Y, Y_err, colors):
 
 # ------------------------ Plot indidividuals scatter ------------------------ #
 if PLOT_INDIVIDUALS:
-    for x, dset, color in zip(X, X_labels, colors):
+    for x, dset, color in zip(X, keys, colors):
         ys = hierarchical.loc[hierarchical.dataset == dset]['means'].values[0]
         xs = np.random.normal(x, .002, size=len(ys))
         color = desaturate_color(color)
@@ -196,6 +196,24 @@ _ = axarr[1].set(title='Maze 4 - Maze 6 | p(R)',
 
 clean_axes(f)
 save_figure(f, os.path.join(paths.plots_dir, 'm4_m6_pR'), svg=True)
+
+# %%
+# ----------------------- Plot posteriors for all mazes ---------------------- #
+f, ax = plt.subplots(figsize=(16, 9))
+
+for i, ds in grouped_pRs.iterrows():
+    beta = get_distribution('beta', ds.alpha, ds.beta, n_samples=100000)
+
+    plot_kde(ax=ax, data=beta, vertical=False, z=0, lw=3, 
+                color=paper.maze_colors[ds.dataset], label=ds.dataset)
+    
+    # ax.axvline(ds['mean'], lw=2, color=desaturate_color(paper.maze_colors[ds.dataset]), zorder=-1)
+
+ax.set(ylabel='density', xlabel='p(R)')
+ax.legend()
+clean_axes(f)
+save_figure(f, os.path.join(paths.plots_dir, 'all_mazes_posteriors'), svg=True)
+
 
 
 # %%

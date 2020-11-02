@@ -11,6 +11,7 @@ import itertools
 def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, thin_alpha=.6,
                                     outline_color='w', outline_width=2, 
                                     head_size=180,
+                                    start_frame = 0,
                                     stop_frame = None, 
                                     color_by_speed=False, cmap=None):
     """
@@ -33,6 +34,9 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
 
     # Plot every N thick colored
     for i in np.arange(stop_frame):
+        if i < start_frame:
+            continue 
+
         if i % N == 0:
             # Plot outline
             ax.plot([nx[i], bx[i]], [ny[i], by[i]], color=outline_color, lw=thick_lw+outline_width, zorder=1,
@@ -45,7 +49,7 @@ def plot_trial_tracking_as_lines(trial, ax, color, N, thick_lw=4, thin_lw=.8, th
                 _col = colorMap(speed[i], name=cmap, vmin=0, vmax=speed.max())
                 line_col = _col
             else:
-                if not (color, list):
+                if not isinstance(color, list):
                     line_col = color
                 else:
                     line_col = color[i]

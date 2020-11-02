@@ -1,7 +1,7 @@
 
 import datajoint as dj
 
-ip = "localhost"
+ip = "127.0.0.1"  #  "localhost"
 
 import sys
 # if sys.platform == "darwin":
@@ -22,11 +22,11 @@ def start_connection():
     """
     dbname = 'DatabaseV4'    # Name of the database subfolder with data
     if dj.config['database.user'] != "root":
-        try:
-            dj.config['database.host'] = ip
-        except Exception as e:
-            print("Could not connect to database: ", e)
-            return None, None
+        # try:
+        dj.config['database.host'] = ip
+        # except Exception as e:
+        #     print("Could not connect to database: ", e)
+        #     return None, None
 
         dj.config['database.user'] = 'root'
         dj.config['database.password'] = psw
