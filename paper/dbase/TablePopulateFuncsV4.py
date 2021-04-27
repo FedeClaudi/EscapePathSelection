@@ -9,6 +9,7 @@ import cv2
 import warnings
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from loguru import logger
 
 from fcutils.path import from_yaml,files
 from fcutils.maths.geometry import (
@@ -574,12 +575,6 @@ def make_visual_stimuli_metadata(table):
 def make_trackingdata_table(table, key):
 	from paper.dbase.TablesDefinitionsV4 import Recording, Session, CCM, MazeComponents
 
-	# split = key['session_name'].split("_")
-	# if len(split) > 2: raise ValueError
-	# else:
-	# 	mouse = split[-1]
-	# if key['mouse_id'] != mouse: return
-
 	# skip experiments that i'm not interested in 
 	experiment = (Session & key).fetch1("experiment_name")
 	if experiment in table.experiments_to_skip: 
@@ -612,10 +607,6 @@ def make_trackingdata_table(table, key):
 		try:
 			posedata = pd.read_hdf(pose_file)
 		except:  # adjust path to new winstor path name
-			# pathparts = pose_file.split("\\")
-			# pathparts.insert(1, "swc")
-			# pose_file = os.path.join(*pathparts)
-			# posedata = pd.read_hdf(pose_file)
 			fld, fl = os.path.split(pose_file)
 			pose_file = os.path.join(paths.tracked_data_folder, fl)
 			posedata = pd.read_hdf(pose_file)
@@ -623,8 +614,6 @@ def make_trackingdata_table(table, key):
 	except:
 		print("Could not find {}".format(pose_file))
 		return
-
-
 
 	# Get the scorer name and the name of the bodyparts
 	first_frame = posedata.iloc[0]
@@ -668,7 +657,7 @@ def make_trackingdata_table(table, key):
 		# remove low likelihood frames
 		bp_data[bp] = corrected_data.copy()
 		like = posedata[scorer[0], bp].values[:, 2]
-		corrected_data[like < .99] = np.nan
+		corrected_data[like < .9999] = np.nan
 
 		# If bp is body get the position on the maze
 		if 'body' in bp:
@@ -802,20 +791,16 @@ def make_exploration_table(table, key):
 # !--------------------------------------------------------------------------- #
 
 def make_trials_table(table, key):
-	# split = key['session_name'].split("_")
-	# if len(split) > 2: raise ValueError
-	# else:
-	# 	mouse = split[-1]
-	# if key['mouse_id'] != mouse: return
 	time.sleep(1)
+	fps = 40
 
-	def get_time_at_roi(tracking, roi, frame, when="next"):
+	def get_time_at_roi(tracking_rois, roi, frame, when="next"):
 		if when == "last":
-			in_roi = np.where(tracking[:frame, -1] == roi)[0]
+			in_roi = np.where(tracking_rois[:frame] == roi)[0]
 			default = 0
 			relevant_idx = -1
 		else:
-			in_roi = np.where(tracking[frame:, -1] == roi)[0]+frame
+			in_roi = np.where(tracking_rois[frame:] == roi)[0]+frame
 			default = None
 			relevant_idx = 0
 
@@ -827,76 +812,63 @@ def make_trials_table(table, key):
 
 	key_copy = key.copy()
 
-	from paper.dbase.TablesDefinitionsV4 import Session, TrackingData, Stimuli, Recording
-	if key['uid'] < 184: fps = 30 # ! hardcoded
-	else: fps = 40
+	from paper.dbase.TablesDefinitionsV4 import Session, Tracking, Stimuli, Recording
 
-	# Get tracking and stimuli data
-	try:
-		data = pd.DataFrame(Session * TrackingData.BodyPartData * Stimuli & key \
-						& "overview_frame > -1")
-		
-		if 'TwoArmsLong Maze' in data.experiment_name.values:
-			raise ValueError
-						
-		if len(data) > 0:
-			data = data.sort_values(['recording_uid'])
-		else:
-			table._insert_placeholder(key) # no stimuli in session
-			return
-	except:
-		print("\nCould not load tracking data for session {} - can't compute trial data".format(key))
-		table._insert_placeholder(key)
-		return
+	# get session metadata and tracking data
+	session = pd.Series((Session.session_metadata(key['uid'])).fetch1())
+	tracking = pd.Series((Tracking * Tracking.BodyPart & 'bpname="body"' & key).fetch1())
 
-	print(f'\nAdding trials from session {data.session_name[0]} experiment {data.experiment_name[0]}')
-	# Get the last next time that the mouse reaches the shelter
-	stim_frame = data.overview_frame.values[0]
+	# get all session recordings
+	uid = key['uid']
+	recordings = pd.DataFrame(Recording & f'uid="{uid}"')
 
-	body_tracking = data.loc[data.bpname == "body"].tracking_data.values[0]
+	# get stimuli
+	stim = pd.Series((Stimuli & key).fetch1())
 
-	last_at_shelt = get_time_at_roi(body_tracking, 0.0, stim_frame, when="last")
-	next_at_shelt = get_time_at_roi(body_tracking, 0.0, stim_frame, when="next")
-	if next_at_shelt is None:
-		# mouse didn't return to the shelter
-		next_at_shelt = -1
+	factor = 1/30 * fps if key['uid'] < 184 else 1
+	stim['frame'] = int(stim.overview_frame * factor)
+
+	# get when the mouse visited the shelter and threat platforms
+	last_at_shelt = get_time_at_roi(tracking.roi, 0, stim.frame, when="last")
+	next_at_shelt = get_time_at_roi(tracking.roi, 0, stim.frame, when="next") or -1
 
 	# Get the when mouse gets on and off T
-	threat_enters, threat_exits = get_roi_enters_exits(body_tracking[:, -1], 1)
+	threat_enters, threat_exits = get_roi_enters_exits(tracking.roi, 1)
 
 	try:
-		got_on_T = [t for t in threat_enters if t <= stim_frame][-1]
+		got_on_T = [t for t in threat_enters if t <= stim.frame][-1]
 	except:
-		table._insert_placeholder(key)
+		logger.debug(f'{stim.stimulus_uid}: mouse didnt get on T, skipping')
 		return
 
 	try:
-		left_T = [t for t in threat_exits if t >= stim_frame][0]
+		left_T = [t for t in threat_exits if t >= stim.frame][0]
 	except:
 		# The mouse didn't leave the threat platform, disregard trial
-		table._insert_placeholder(key)
+		logger.debug(f'{stim.stimulus_uid}: mouse didnt leave T, skipping')
 		return
 
-	if stim_frame in [last_at_shelt, next_at_shelt, got_on_T, left_T]:
+	if stim.frame in [last_at_shelt, next_at_shelt, got_on_T, left_T]:
 		# something went wrong... skipping trial
-		table._insert_placeholder(key)
+		logger.debug(f'{stim.stimulus_uid}: stim frame is a special frame, cant be! skipping')
 		return
 
 	# Get time to leave T and escape duration in seconds
-	time_out_of_t = (left_T-stim_frame)/fps
+	time_out_of_t = (left_T-stim.frame)/fps
 	if next_at_shelt > 0:
-		escape_duration = (next_at_shelt - stim_frame)/fps
+		escape_duration = (next_at_shelt - stim.frame)/fps
 	else:
 		escape_duration = -1
 
 	# Get arm of escape
-	escape_rois = convert_roi_id_to_tag(body_tracking[stim_frame:next_at_shelt, -1])
+	escape_rois = convert_roi_id_to_tag(tracking.roi[stim.frame:next_at_shelt])
 	if not  escape_rois: 
 		raise ValueError("No escape rois detected", t)
+
 	escape_arm = get_arm_given_rois(escape_rois, 'in')
 	if escape_arm is None: 
 		# something went wrong, ignore trial
-		table._insert_placeholder(key)
+		logger.debug(f'{stim.stimulus_uid} Escape arm is None, skipping')
 		return
 
 	if "left" in escape_arm.lower():
@@ -907,12 +879,13 @@ def make_trials_table(table, key):
 		escape_arm = "center"
 
 	# Get arm of origin
-	origin_rois = convert_roi_id_to_tag(body_tracking[last_at_shelt:stim_frame, -1])
+	origin_rois = convert_roi_id_to_tag(body_tracking[last_at_shelt:stim.frame])
 	if not origin_rois: raise ValueError
+
 	origin_arm = get_arm_given_rois(origin_rois, 'out')
 	if origin_arm is None: 
 		# something went wrong, ignore trial
-		table._insert_placeholder(key)
+		logger.debug(f'{stim} no arm of origin, skipping')
 		return
 
 	if "left" in origin_arm.lower():
@@ -923,18 +896,15 @@ def make_trials_table(table, key):
 		origin_arm = "center"
 
 	# Get the frame numnber relative to start of session
-	session_recordings = pd.DataFrame((Session * Recording * TrackingData.BodyPartData & "bpname='body'" \
-								& "uid={}".format(key['uid']) \
-								& "bpname='body'").fetch())
-	session_recordings = session_recordings.sort_values(["recording_uid"])
-	stim_rec_n = list(session_recordings.recording_uid.values).index(key['recording_uid'])
+	recordings = recordings.sort_values(["recording_uid"])
+	stim_rec_n = list(recordings.recording_uid.values).index(key['recording_uid'])
 
-	nframes_before = np.int(0+np.sum([len(tr.x) for i,tr in session_recordings.iterrows()][:stim_rec_n]))
+	nframes_before = np.int(0+np.sum([len(tr.x) for i,tr in recordings.iterrows()][:stim_rec_n]))
 
 	# Fill in table
 	key['out_of_shelter_frame'] = last_at_shelt
 	key['at_threat_frame'] = got_on_T
-	key['stim_frame'] = stim_frame
+	key['stim.frame'] = stim.frame
 	key['out_of_t_frame'] = left_T
 	key['at_shelter_frame'] = next_at_shelt
 	key['escape_duration'] = escape_duration
@@ -944,52 +914,3 @@ def make_trials_table(table, key):
 	key['fps'] = fps
 
 	table.insert1(key)
-
-	# ? Fill in parts tables
-	# Session metadata
-	trial_key = key_copy.copy()
-	trial_key['stim_frame_session'] = nframes_before + stim_frame
-	trial_key['experiment_name'] = data.experiment_name.values[0]
-	table.TrialSessionMetadata.insert1(trial_key)
-
-	# Get tracking data for trial
-	parts_tracking = pd.DataFrame((TrackingData.BodyPartData & key).fetch())
-	parts_tracking.index = parts_tracking.bpname
-	bones_tracking = pd.DataFrame((TrackingData.BodySegmentData & key).fetch())
-	bones_tracking.index = bones_tracking.segment_name
-
-	# fill in
-	for subtable, end_frame in zip([table.TrialTracking, table.ThreatTracking], [next_at_shelt, left_T]):
-		trial_key = key.copy()
-		
-		delete_keys = ['out_of_shelter_frame', 'at_threat_frame', 'stim_frame', 'out_of_t_frame', 
-						'at_shelter_frame', 'escape_duration', 'time_out_of_t', 
-						'escape_arm', 'origin_arm', 'fps']
-		for k in delete_keys:
-			del trial_key[k]
-
-		trial_key['body_xy'] = parts_tracking.loc['body'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['body_speed'] = parts_tracking.loc['body'].speed[stim_frame:end_frame]
-		trial_key['body_dir_mvmt'] = parts_tracking.loc['body'].direction_of_mvmt[stim_frame:end_frame]
-		trial_key['body_rois'] = parts_tracking.loc['body'].tracking_data[stim_frame:end_frame, -1]
-		trial_key['body_orientation'] = bones_tracking.loc['body'].orientation[stim_frame:end_frame]
-		trial_key['body_angular_vel'] = bones_tracking.loc['body'].angular_velocity[stim_frame:end_frame]
-
-		trial_key['head_orientation'] = bones_tracking.loc['head'].orientation[stim_frame:end_frame]
-		trial_key['head_angular_vel'] = bones_tracking.loc['head'].angular_velocity[stim_frame:end_frame]
-
-		trial_key['snout_xy'] = parts_tracking.loc['snout'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['snout_speed'] = parts_tracking.loc['snout'].speed[stim_frame:end_frame]
-		trial_key['snout_dir_mvmt'] = parts_tracking.loc['snout'].direction_of_mvmt[stim_frame:end_frame]
-
-		trial_key['neck_xy'] = parts_tracking.loc['neck'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['neck_speed'] = parts_tracking.loc['neck'].speed[stim_frame:end_frame]
-		trial_key['neck_dir_mvmt'] = parts_tracking.loc['neck'].direction_of_mvmt[stim_frame:end_frame]
-
-		trial_key['tail_xy'] = parts_tracking.loc['tail_base'].tracking_data[stim_frame:end_frame, :2]
-		trial_key['tail_speed'] = parts_tracking.loc['tail_base'].speed[stim_frame:end_frame]
-		trial_key['tail_dir_mvmt'] = parts_tracking.loc['tail_base'].direction_of_mvmt[stim_frame:end_frame]
-
-		subtable.insert1(trial_key)
-
-

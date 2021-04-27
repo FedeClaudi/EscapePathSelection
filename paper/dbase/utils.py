@@ -241,5 +241,5 @@ def get_roi_at_each_frame(experiment, session_name, bp_data, rois=None):
     roi_at_each_frame = tuple([roi_names[x] for x in sel_rois])
 
     # Check we got cetners correctly
-    check_roi_tracking_plot(session_name, rois, centers, roi_names, bp_data, roi_at_each_frame)
+    # check_roi_tracking_plot(session_name, rois, centers, roi_names, bp_data, roi_at_each_frame)
     return roi_at_each_frame
