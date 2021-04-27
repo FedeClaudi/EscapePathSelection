@@ -11,7 +11,7 @@ from collections import namedtuple
 from math import sqrt
 
 from fcutils.plotting.colors import *
-from fcutils.file_io.io import load_yaml
+from fcutils.file_io.io import from_yaml
 from fcutils.plotting.utils import create_figure, clean_axes, save_figure, set_figure_subplots_aspect
 from fcutils.plotting.colors import desaturate_color
 from fcutils.plotting.plot_distributions import plot_kde
@@ -66,7 +66,7 @@ trs = trs.drop(trs.loc[trs.session_name == '181107_CA344.2'].index)
 
 # ---------------------- Load metadata about maze state ---------------------- #
 
-metadata = load_yaml(os.path.join(paths.flip_flop_metadata_dir, "trials_metadata.yml"))
+metadata = from_yaml(os.path.join(paths.flip_flop_metadata_dir, "trials_metadata.yml"))
 maze_state = []
 for i, t in trs.iterrows():
     maze_state.append([v for l in metadata[int(t.uid)]  for k, v in l.items() if k==t.stimulus_uid][0])

@@ -1,8 +1,16 @@
 
 import datajoint as dj
-
+import pandas as pd
 import numpy as np
+from scipy.signal import resample
 
+from fcutils.maths.geometry import (
+    calc_distance_between_points_in_a_vector_2d as get_speed_from_xy,
+)
+from fcutils.maths import rolling_mean
+
+import sys
+sys.path.append('./')
 from paper.dbase.TablePopulateFuncsV4 import *
 from paper import schema
 
@@ -24,8 +32,6 @@ class Mouse(dj.Manual):
 	"""
 
 	# ? population method is in populate_database
-	
-
 
 
 # ---------------------------------------------------------------------------- #
@@ -93,7 +99,30 @@ class Session(dj.Manual):
 	def get_experiments_in_table(self):
 		return set(Session.fetch("experiment_name"))
 
+	def get_by(self, maze=None, naive=None, lights=None, fetch=False):
+		data = self * self.Metadata
 
+		if maze is not None:
+			data = data & f'maze_type="{maze}"'
+
+		if naive is not None:
+			data = data & f'naive="{naive}"'
+
+		if lights is not None:
+			data = data & f'lights="{lights}"'
+
+		if fetch:
+			return pd.DataFrame(data.fetch())
+		else:
+			return data
+
+	@staticmethod
+	def fps(session_uid):
+		'''Returns the fPS of a session given its uid'''
+		if session_uid < 184: 
+			return 30
+		else:
+			return 40
 
 # ---------------------------------------------------------------------------- #
 #                                MAZE COMPONENTS                               #
@@ -283,7 +312,17 @@ class Stimuli(dj.Imported):
 		make_visual_stimuli_metadata(self)	
 			
 
+	@classmethod
+	def get_by_sesions(cls, sessions):
+		'''
+			Given a query with sessions data returns the relevant entries
+			in the Stimuli table correcting for the appropriate FPS conversions
+		'''
+		data = pd.DataFrame(Stimuli & sessions & 'duration>0')
+		data['fps'] = [30 if s.uid < 184 else 40 for i,s in data.iterrows()]
+		data['frame'] = np.array(data['overview_frame'] / data['fps'] * 40).astype(np.int64)
 
+		return data
 
 
 
@@ -341,8 +380,75 @@ class TrackingData(dj.Imported):
 		return set((TrackingData() * Recording() * Session()).fetch("experiment_name"))
 
 
+@schema
+class Tracking(dj.Imported):
+	'''
+		tracking data but for all sessions fps=40 and units
+		are in physical coordinates.
+	'''
+	cm_per_px = 0.22  # each px = cm
+	definition = """
+		-> TrackingData
+	"""
 
+	class BodyPart(dj.Part):
+		definition = """
+			# stores X,Y,Velocity... for a single bodypart
+			-> Tracking
+			bpname: varchar(128)        # name of the bodypart
+			---
+			x: longblob
+			y: longblob
+			speed: longblob
+			roi: longblob  # which maze component is the bodypart on
+		"""
 
+	def make(self, key):
+		'''
+			get data from tracking data and convert to fps and physical size
+		'''
+		self.insert1(key)
+		data = pd.DataFrame(TrackingData * TrackingData.BodyPartData & key)
+
+		for i, tracking in data.iterrows():	
+			if tracking.uid < 184:
+				fps = 30
+			else:
+				fps = 40
+
+			# change to physical coordinates
+			xy = pd.DataFrame(dict(x=tracking['x'], y=tracking['y']))
+			xy.interpolate(method='linear', axis=0, limit_direction='backward', inplace=True)
+
+			xy = xy.values  * self.cm_per_px
+			xy = np.vstack(
+				[
+					rolling_mean(xy[:, 0], int(fps / 4)),
+					rolling_mean(xy[:, 1], int(fps / 4)),
+				]
+			).T
+
+			# change to 40 fps
+			if fps == 30:
+				n_secs = len(xy) / 30
+				n_samples = int(np.ceil(n_secs * 40))
+
+				xy = resample(xy, n_samples)
+
+				# upsample maze component
+				rois = tracking['tracking_data'][:, -1]
+				rois = resample(rois, n_samples).astype(np.int64)
+
+			# get speed trace
+			speed = get_speed_from_xy(xy[:, 0], xy[:, 1])
+
+			bpkey = key.copy()
+			bpkey['x'] = xy[:, 0]
+			bpkey['y'] = xy[:, 1]
+			bpkey['speed'] = speed
+			bpkey['roi'] = rois
+			bpkey['bpname'] = tracking.bpname
+			Tracking.BodyPart.insert1(bpkey)
 
 
 
@@ -549,45 +655,16 @@ class Trials(dj.Imported):
 
 
 
-# # ---------------------------------------------------------------------------- #
-# #                                    HOMINGS                                   #
-# # ---------------------------------------------------------------------------- #
-# @schema
-# class Homings(dj.Manual):
-# 	definition = """
-# 		homing_id: varchar(128) # recording_uid + t_enter time
-# 		---
-# 		-> Session
-# 		-> Recording
-# 		stim_id:  varchar(128)  			# stimulus_uid entry in Stimuli table, if it was spontaneous = "none"
-# 		stim_frame: int						# stim frame relative to threat enter
-# 		fps: int  
-# 		is_trial: enum("true", "false")
-# 		tracking_data: longblob 			# Mx2x4 array with tracking data for each frame, X,Y each body part (snout, neck, body, tail)
-# 		outward_tracking_data: longblob		# same as above, but for shelter -> threat platform
-# 		threat_tracking_data: longblob	    # just tracking when on threat
-		
-# 		homing_arm: varchar(128) 			# 0 for left and 1 for right
-# 		outward_arm: varchar(128) 			# 0 for left and 1 for right
-		
-# 		time_out_of_t: float 				# time in seconds out of the threat platform
-# 		frame_out_of_t: int 				# time in frames out of the threat platform
-# 		homing_duration: float 				# homing duration in seconds
-
-# 		last_shelter_exit: int  			# frame at which it exited the shelter
-# 		threat_enter: int 					# frame at which it entered the threat
-# 		last_t_exit: int 					# frame at which it last left the threat platform
-# 		first_s_enter: int 					# frame at which it first got back in the shelter
-# 	"""
-
-
-
 
 
 if __name__ == "__main__": 
 	# pass
-	Recording.drop()
+	# Recording.drop()
 	# print(Homings())
 	# print_erd() 
 	# plt.show()
 	# Recording.drop()
+# 
+	Tracking().populate(display_progress=True)
+	# Tracking().drop()
+

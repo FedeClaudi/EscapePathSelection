@@ -10,16 +10,15 @@ import warnings
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from fcutils.file_io.io import load_yaml
-from fcutils.file_io.utils import listdir
+from fcutils.path import from_yaml,files
 from fcutils.maths.geometry import (
 		calc_angle_between_vectors_of_points_2d, 
 		calc_distance_between_points_in_a_vector_2d, 
 		calc_angle_between_points_of_vector_2d,
 		calc_ang_velocity,
 		)
-from fcutils.video.utils import get_video_params
-from fcutils.maths.stimuli_detection import find_audio_stimuli, find_visual_stimuli
+from fcutils.video import get_video_params
+# from fcutils.maths.signals import find_audio_stimuli, find_visual_stimuli
 
 from paper.dbase.utils import (
 		get_roi_enters_exits, 
@@ -40,11 +39,11 @@ from paper import paths
 def make_templates_table(key):
 	from paper.dbase.TablesDefinitionsV4 import Session
 	# Load yaml with rois coordinates
-	rois = load_yaml("paper/dbase/MazeModelROILocation.yml")
+	rois = from_yaml("paper/dbase/MazeModelROILocation.yml")
 
 	# Only keep the rois relevant for each experiment
 	experiment_name = (Session & key).fetch("experiment_name")[0]
-	rois_per_exp = load_yaml("paper/dbase/MazeModelROI_perExperiment.yml")
+	rois_per_exp = from_yaml("paper/dbase/MazeModelROI_perExperiment.yml")
 	rois_per_exp = rois_per_exp[experiment_name]
 	selected_rois = {k:(p if k in rois_per_exp else -1)  for k,p in rois.items()}
 
@@ -127,10 +126,10 @@ def make_recording_table(table, key):
 
 def fill_in_recording_paths(recordings):
 	# fills in FilePaths table
-	videos = 	 listdir(paths.raw_video_folder) # listdir(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
-	poses = 	 listdir(paths.tracked_data_folder)
-	metadatas =  listdir(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))
-	ais =		 listdir(paths.raw_ai_folder)
+	videos = 	files(paths.raw_video_folder) #files(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
+	poses = 	files(paths.tracked_data_folder)
+	metadatas = files(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))
+	ais =		files(paths.raw_ai_folder)
 
 	recs_in_part_table = recordings.FilePaths.fetch("recording_uid")
 
@@ -331,6 +330,7 @@ def make_stimuli_table(table, key):
 
 
 	def make_mantisstimuli(table, key):
+		raise NotImplementedError('Find visual and audio stimuli from fcutils dont exist anymore, need to be found.')
 		def plot_signals(audio_channel_data, stim_start_times, overview=False, threat=False):
 			f, ax = plt.subplots()
 			ax.plot(audio_channel_data)
@@ -373,7 +373,7 @@ def make_stimuli_table(table, key):
 		else:
 			# load feather and extract info
 			tdms_df = load_feather(feather_file)
-			groups = [g.split("'/'")[0][2:] for g in load_yaml(groups_file) if "'/'" in g]
+			groups = [g.split("'/'")[0][2:] for g in from_yaml(groups_file) if "'/'" in g]
 
 		# Get which stimuli are in the data loaded
 		if not isinstance(tdms_df, pd.DataFrame):
@@ -411,7 +411,7 @@ def make_stimuli_table(table, key):
 				th = 1.5
 			
 			# Find when the stimuli start in the AI data
-			stim_start_times = find_audio_stimuli(audio_channel_data, th, table.sampling_rate)
+			# stim_start_times = find_audio_stimuli(audio_channel_data, th, table.sampling_rate)
 
 			# Check we found the correct number of peaks
 			if not len(stimuli) == len(stim_start_times):
@@ -453,11 +453,11 @@ def make_stimuli_table(table, key):
 
 			# Get the stimuli start and ends from the LDR AI signal
 			ldr_signal = tdms_df.objects["/'LDR_signal_AI'/'0'"]._data
-			try:
-				ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
-			except:
-				print('failed... ', key)
-				return
+			# try:
+			# 	ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
+			# except:
+			# 	print('failed... ', key)
+			# 	return
 			
 			# # Get the metadata about the stimuli from the log.yml file
 			log_stimuli = load_visual_stim_log(visual_log_file)
@@ -520,7 +520,7 @@ def make_visual_stimuli_metadata(table):
 
 		# Load the metadata
 		try:
-			metadata = load_yaml((table.VisualStimuliLogFile & key).fetch1("filepath"))
+			metadata = from_yaml((table.VisualStimuliLogFile & key).fetch1("filepath"))
 		except:
 			# print("Could not get metadata for ", key)
 			continue

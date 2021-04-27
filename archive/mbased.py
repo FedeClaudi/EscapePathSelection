@@ -18,7 +18,7 @@ from fcutils.maths.distributions import centered_logistic
 from fcutils.plotting.colors import desaturate_color
 from fcutils.plotting.colors import *
 from fcutils.maths.distributions import get_distribution
-from fcutils.file_io.io import load_yaml
+from fcutils.file_io.io import from_yaml
 
 import paper
 from paper import paths
@@ -120,7 +120,7 @@ tracking.index = tracking.session_name
 
 # %%
 # Load metadata
-notes = load_yaml('D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\modelbased\\notes.yml')
+notes = from_yaml('D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\modelbased\\notes.yml')
 
 skips = []
 

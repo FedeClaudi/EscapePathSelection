@@ -1,4 +1,4 @@
-from fcutils.file_io.io import load_yaml
+from fcutils.path import from_yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -9,7 +9,7 @@ def load_visual_stim_log(path):
     if not os.path.isfile(path): raise FileExistsError("Couldnt find log file: ", path)
     
     try: 
-        log = load_yaml(path)
+        log = from_yaml(path)
     except:
         raise ValueError("Could not load: ", path)
 
@@ -133,13 +133,13 @@ def get_roi_enters_exits(roi_tracking, roi_id):
 	return enters, exits
 
 def convert_roi_id_to_tag(ids):
-    rois_lookup = load_yaml('paper/dbase/rois_lookup.yml')
+    rois_lookup = from_yaml('paper/dbase/rois_lookup.yml')
     rois_lookup = {v:k for k,v in rois_lookup.items()}
     return [rois_lookup[int(r)] for r in ids]
 
 
 def load_rois(display=False):
-    components = load_yaml('paper/dbase/template_components.yml')
+    components = from_yaml('paper/dbase/template_components.yml')
     rois = {}
 
     # Get platforms

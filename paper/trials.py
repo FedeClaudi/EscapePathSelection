@@ -59,6 +59,11 @@ class TrialsLoader(Bayes):
                 maze6 =  self.load_trials_by_condition(maze_design=6),
                             )
 
+    def load_all(self):
+        self.load_psychometric()
+        self.experiment_name = 'FlipFlop Maze'
+        self.datasets['flipflop'] = self.load_trials_by_condition()
+
     def load_trials_by_condition(self, maze_design=None):
         """[Given a number of criteria, load the trials that match these criteria]		
         """

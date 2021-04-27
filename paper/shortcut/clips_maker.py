@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import cv2
 
-from fcutils.file_io.io import load_yaml
+from fcutils.file_io.io import from_yaml
 from fcutils.file_io.utils import get_file_name
 from fcutils.video.utils import get_cap_from_file, get_cap_selected_frame, get_video_params, open_cvwriter
 
@@ -21,7 +21,7 @@ n_frames_pos = 15 * fps
 
 output_fld = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\shortctu\\trials'
 notes_path = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\shortctu\\notes.yml'
-notes = load_yaml(notes_path)
+notes = from_yaml(notes_path)
 
 # Text stuff
 font                   = cv2.FONT_HERSHEY_SIMPLEX

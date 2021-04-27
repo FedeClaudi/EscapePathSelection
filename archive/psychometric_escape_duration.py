@@ -42,7 +42,7 @@ params = dict(
 trials = TrialsLoader(**params)
 trials.load_psychometric()
 trials.remove_change_of_mind_trials() # remove silly trials
-trials.keep_catwalk_only()
+# trials.keep_catwalk_only()
 
 # %%
 
@@ -142,10 +142,10 @@ for n, (maze, trs) in enumerate(trials.datasets.items()):
     # Look at individual mice:
     for mouse in trs.mouse_id.unique():
         mouse_trials = trs.loc[trs.mouse_id == mouse]
-        _left, right, _, lstd, rstd = get_lr_stats(mouse_trials, norm=True)
+        _left, right, _, lstd, rstd = get_lr_stats(mouse_trials, norm=False)
 
-        # right = right / real_left
-        # _left = _left / real_left
+        right = right / real_left
+        _left = _left / real_left
 
         ax.scatter([n-.20 + np.random.normal(0, .02), n+.20 + np.random.normal(0, .02)], 
                     [_left, right], zorder=-1, ec='k', lw=1, s=60,

@@ -19,7 +19,7 @@ from fcutils.plotting.colors import *
 from fcutils.plotting.plot_elements import plot_mean_and_error, rose_plot
 from fcutils.plotting.plot_distributions import plot_fitted_curve, plot_kde
 from fcutils.plotting.colors import desaturate_color, makePalette
-from fcutils.file_io.io import load_yaml
+from fcutils.file_io.io import from_yaml
 from fcutils.maths.geometry import calc_distance_from_point, calc_angles_with_arctan, calc_angle_between_vectors_of_points_2d
 from fcutils.maths.filtering import line_smoother
 from fcutils.maths.utils import derivative
@@ -97,7 +97,7 @@ def is_point_in_rec(x, y, rec='shelter'):
 # ---------------------------- Load notes and data --------------------------- #
 
 notes_path = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\shortctu\\notes.yml'
-notes = load_yaml(notes_path)
+notes = from_yaml(notes_path)
 
 keep_sessions = [k[:-2] for k,n in notes.items() if n['overall']=='keep']
 print('Keeping sessions: ', *keep_sessions)

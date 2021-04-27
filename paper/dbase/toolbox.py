@@ -11,8 +11,8 @@ from nptdms import TdmsFile
 import scipy.signal as signal
 from collections import OrderedDict
 
-from fcutils.file_io.io import load_yaml
-from fcutils.maths.stimuli_detection import *
+from fcutils.path import from_yaml
+# from fcutils.maths.stimuli_detection import *
 
 from paper.dbase.ccm import run as get_matrix
 from paper.dbase.utils import correct_tracking_data, get_roi_at_each_frame
@@ -59,7 +59,7 @@ def load_visual_stim_log(path):
     if not os.path.isfile(path): raise FileExistsError("Couldnt find log file: ", path)
     
     try: 
-        log = load_yaml(path)
+        log = from_yaml(path)
     except:
         raise ValueError("Could not load: ", path)
 

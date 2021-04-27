@@ -1,0 +1,1 @@
+max_escape_duration = 12  # escapes cant last longer than this

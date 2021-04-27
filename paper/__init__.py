@@ -2,6 +2,8 @@
 from paper import djconn
 dbname, schema = djconn.start_connection()
 
+from paper.dbase import Session, Recording, Stimuli, TrackingData, Explorations, Trials, Mouse, Tracking
+
 # Paths
 from paper import paths
 
@@ -10,32 +12,32 @@ from paper import paths
 import paper.utils.mpl_config
 
 
-# Colors
-from fcutils.plotting.colors import *
-from fcutils.plotting.colors import makePalette
+# # Colors
+# from fcutils.plotting.colors import *
+# from fcutils.plotting.colors import makePalette
 
 
-palette = makePalette(green, orange, 7 , False)
-maze_colors = {
-    'maze0': darkgreen,
-    'maze1': palette[0],
-    'maze1-dark': darkred, 
-    'maze1-light': red, 
-    'maze2': palette[1],
-    'maze3': palette[2],
-    'maze4': palette[3],
-    'maze6': salmon,
-    'mb': palette[4],
-    'mb1': palette[4],
-    'mb2': palette[5]
-}
+# palette = makePalette(green, orange, 7 , False)
+# maze_colors = {
+#     'maze0': darkgreen,
+#     'maze1': palette[0],
+#     'maze1-dark': darkred, 
+#     'maze1-light': red, 
+#     'maze2': palette[1],
+#     'maze3': palette[2],
+#     'maze4': palette[3],
+#     'maze6': salmon,
+#     'mb': palette[4],
+#     'mb1': palette[4],
+#     'mb2': palette[5]
+# }
 
-palette = makePalette(teal, lilla, 4, False)
-arms_colors = {
-    "left": seagreen,
-    'center': salmon,
-    "right": darkseagreen,
-}
+# palette = makePalette(teal, lilla, 4, False)
+# arms_colors = {
+#     "left": seagreen,
+#     'center': salmon,
+#     "right": darkseagreen,
+# }
 
 
 

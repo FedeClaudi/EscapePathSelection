@@ -3,7 +3,7 @@ sys.path.append('./')
 
 import numpy as np
 
-from fcutils.file_io.io import load_yaml
+from fcutils.file_io.io import from_yaml
 from fcutils.maths.geometry import calc_distance_from_point
 
 def get_mazes():
@@ -11,7 +11,7 @@ def get_mazes():
         maze_metadata_file = '/Users/federicoclaudi/Documents/Github/EscapePathSelection/paper/dbase/Mazes_metadata.yml'
     else:
         maze_metadata_file = "C:\\Users\\Federico\\Documents\\GitHub\\EscapePathSelection\\paper\\dbase\\Mazes_metadata.yml"
-    mazes = load_yaml(maze_metadata_file)
+    mazes = from_yaml(maze_metadata_file)
 
     for maze, metadata in mazes.items():
         mazes[maze]['ratio'] = metadata['left_path_length']/(metadata['right_path_length'] + metadata['left_path_length'])
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
 # add_m0 = False
 
-# mazes = load_yaml("database/maze_components/Mazes_metadata.yml")
+# mazes = from_yaml("database/maze_components/Mazes_metadata.yml")
 # f, ax = create_figure(subplots=False)
 
 # ax.plot([0, 10000], [0, 10000], ls=':', lw=2, color=[.2, .2, .2], alpha=.3)

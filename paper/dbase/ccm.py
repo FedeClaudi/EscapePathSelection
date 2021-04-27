@@ -7,7 +7,7 @@ import os
 import numpy as np
 import cv2
 
-from fcutils.file_io.io import load_yaml
+from fcutils.path import from_yaml
 
 def correct_image_fisheye(img):
     fisheye_file = "Utilities\\video_and_plotting\\fisheye_maps.npy"
