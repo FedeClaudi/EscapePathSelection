@@ -3,6 +3,7 @@ import datajoint as dj
 import pandas as pd
 import numpy as np
 from scipy.signal import resample
+import time
 
 from fcutils.maths.geometry import (
     calc_distance_between_points_in_a_vector_2d as get_speed_from_xy,
@@ -312,8 +313,8 @@ class Stimuli(dj.Imported):
 		make_visual_stimuli_metadata(self)	
 			
 
-	@classmethod
-	def get_by_sesions(cls, sessions):
+	@staticmethod
+	def get_by_sessions(sessions):
 		'''
 			Given a query with sessions data returns the relevant entries
 			in the Stimuli table correcting for the appropriate FPS conversions
@@ -429,6 +430,7 @@ class Tracking(dj.Imported):
 			).T
 
 			# change to 40 fps
+			rois = tracking['tracking_data'][:, -1]
 			if fps == 30:
 				n_secs = len(xy) / 30
 				n_samples = int(np.ceil(n_secs * 40))
@@ -436,7 +438,6 @@ class Tracking(dj.Imported):
 				xy = resample(xy, n_samples)
 
 				# upsample maze component
-				rois = tracking['tracking_data'][:, -1]
 				rois = resample(rois, n_samples).astype(np.int64)
 
 			# get speed trace
@@ -449,6 +450,7 @@ class Tracking(dj.Imported):
 			bpkey['roi'] = rois
 			bpkey['bpname'] = tracking.bpname
 			Tracking.BodyPart.insert1(bpkey)
+			time.sleep(2)
 
 
 
