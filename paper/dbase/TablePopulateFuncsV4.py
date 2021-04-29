@@ -10,6 +10,7 @@ import warnings
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from loguru import logger
+from scipy.signal import medfilt
 
 from fcutils.path import from_yaml,files
 from fcutils.maths.geometry import (
@@ -791,7 +792,7 @@ def make_exploration_table(table, key):
 # !--------------------------------------------------------------------------- #
 
 def make_trials_table(table, key):
-	time.sleep(1)
+
 	fps = 40
 
 	def get_time_at_roi(tracking_rois, roi, frame, when="next"):
@@ -816,7 +817,17 @@ def make_trials_table(table, key):
 
 	# get session metadata and tracking data
 	session = pd.Series((Session.session_metadata(key['uid'])).fetch1())
-	tracking = pd.Series((Tracking * Tracking.BodyPart & 'bpname="body"' & key).fetch1())
+	if session.experiment_name in table.ignored_experiments:
+		logger.debug(f'Trial for ignored experiment: {session.experiment_name} | skipping')
+		table._insert_placeholder(key)
+		return
+	time.sleep(1)
+
+	try:
+		tracking = pd.Series((Tracking * Tracking.BodyPart & 'bpname="body"' & key).fetch1())
+	except Exception:
+		logger.debug(f'Could not fetch tracking for {session}')
+		return
 
 	# get all session recordings
 	uid = key['uid']
@@ -838,19 +849,22 @@ def make_trials_table(table, key):
 	try:
 		got_on_T = [t for t in threat_enters if t <= stim.frame][-1]
 	except:
-		logger.debug(f'{stim.stimulus_uid}: mouse didnt get on T, skipping')
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name}: mouse didnt get on T, skipping')
+		# table._insert_placeholder(key)
 		return
 
 	try:
 		left_T = [t for t in threat_exits if t >= stim.frame][0]
 	except:
 		# The mouse didn't leave the threat platform, disregard trial
-		logger.debug(f'{stim.stimulus_uid}: mouse didnt leave T, skipping')
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name}: mouse didnt leave T, skipping')
+		# table._insert_placeholder(key)
 		return
 
 	if stim.frame in [last_at_shelt, next_at_shelt, got_on_T, left_T]:
 		# something went wrong... skipping trial
-		logger.debug(f'{stim.stimulus_uid}: stim frame is a special frame, cant be! skipping')
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name}: stim frame is a special frame, cant be! skipping')
+		# table._insert_placeholder(key)
 		return
 
 	# Get time to leave T and escape duration in seconds
@@ -858,7 +872,9 @@ def make_trials_table(table, key):
 	if next_at_shelt > 0:
 		escape_duration = (next_at_shelt - stim.frame)/fps
 	else:
-		escape_duration = -1
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name} Escape duration could not be determined, skipping')
+		# table._insert_placeholder(key)
+		return
 
 	# Get arm of escape
 	escape_rois = convert_roi_id_to_tag(tracking.roi[stim.frame:next_at_shelt])
@@ -868,7 +884,8 @@ def make_trials_table(table, key):
 	escape_arm = get_arm_given_rois(escape_rois, 'in')
 	if escape_arm is None: 
 		# something went wrong, ignore trial
-		logger.debug(f'{stim.stimulus_uid} Escape arm is None, skipping')
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name} Escape arm is None, skipping')
+		# table._insert_placeholder(key)
 		return
 
 	if "left" in escape_arm.lower():
@@ -879,13 +896,14 @@ def make_trials_table(table, key):
 		escape_arm = "center"
 
 	# Get arm of origin
-	origin_rois = convert_roi_id_to_tag(body_tracking[last_at_shelt:stim.frame])
+	origin_rois = convert_roi_id_to_tag(tracking.roi[last_at_shelt:stim.frame])
 	if not origin_rois: raise ValueError
 
 	origin_arm = get_arm_given_rois(origin_rois, 'out')
 	if origin_arm is None: 
 		# something went wrong, ignore trial
-		logger.debug(f'{stim} no arm of origin, skipping')
+		logger.debug(f'{stim.stimulus_uid} | {session.experiment_name} no arm of origin, skipping')
+		# table._insert_placeholder(key)
 		return
 
 	if "left" in origin_arm.lower():
@@ -897,20 +915,30 @@ def make_trials_table(table, key):
 
 	# Get the frame numnber relative to start of session
 	recordings = recordings.sort_values(["recording_uid"])
+	recording_frames = [Recording.recording_n_frames(uid) for uid in recordings['recording_uid']]
 	stim_rec_n = list(recordings.recording_uid.values).index(key['recording_uid'])
-
-	nframes_before = np.int(0+np.sum([len(tr.x) for i,tr in recordings.iterrows()][:stim_rec_n]))
+	
+	n_frames_before = int(np.sum(recording_frames[:stim_rec_n]))
 
 	# Fill in table
 	key['out_of_shelter_frame'] = last_at_shelt
 	key['at_threat_frame'] = got_on_T
-	key['stim.frame'] = stim.frame
+	key['stim_frame'] = stim.frame
 	key['out_of_t_frame'] = left_T
 	key['at_shelter_frame'] = next_at_shelt
+
+	key['stim_frame_session'] = stim.frame + n_frames_before
+	key['experiment_name'] = session.experiment_name
+
 	key['escape_duration'] = escape_duration
 	key['time_out_of_t'] = time_out_of_t
 	key['escape_arm'] = escape_arm
 	key['origin_arm'] = origin_arm
-	key['fps'] = fps
+
+	key['x'] = tracking.x[stim.frame : next_at_shelt]
+	key['y'] = tracking.y[stim.frame : next_at_shelt]
+	key['speed'] = tracking.speed[stim.frame : next_at_shelt]
+	key['roi'] = tracking.roi[stim.frame : next_at_shelt]
+	key['distance_travelled'] = np.sum(medfilt(tracking.speed[stim.frame : next_at_shelt], 10))
 
 	table.insert1(key)

@@ -10,8 +10,10 @@ from fcutils.maths.geometry import (
 )
 from fcutils.maths import rolling_mean
 
+
 import sys
 sys.path.append('./')
+import paper
 from paper.dbase.TablePopulateFuncsV4 import *
 from paper import schema
 from paper.dbase.utils import get_roi_at_each_frame
@@ -221,8 +223,12 @@ class Recording(dj.Imported):
     def make_aligned_frames(self):
         fill_in_aligned_frames(self)
 
-
-
+    @staticmethod
+    def recording_n_frames(recording_uid):
+        ''' gets the number of frames int he recording
+            by looking at the tracking data '''
+        tracking = pd.DataFrame(Tracking * Tracking.BodyPart & f'recording_uid="{recording_uid}"' & 'bpname="body"')
+        return len(tracking.iloc[0].x)
 
 
 # ---------------------------------------------------------------------------- #
@@ -397,6 +403,8 @@ class Tracking(dj.Imported):
             get data from tracking data and convert to fps and physical size
         '''
         self.insert1(key)
+        time.sleep(1)
+        
         data = pd.DataFrame(TrackingData * TrackingData.BodyPartData & key)
 
         for i, tracking in data.iterrows():	
@@ -423,14 +431,14 @@ class Tracking(dj.Imported):
 
                 xy = resample(xy, n_samples)
 
-                # get maze component at each fram
+                # get maze component at each frame
                 rois = self.get_roi_at_each_frame(key, xy)
 
             # convert to physical coordinates
             xy *= self.cm_per_px
 
-            # get speed trace
-            speed = get_speed_from_xy(xy[:, 0], xy[:, 1])
+            # get speed trace in cm/s
+            speed = get_speed_from_xy(xy[:, 0], xy[:, 1]) * 40
 
             bpkey = key.copy()
             bpkey['x'] = xy[:, 0]
@@ -512,7 +520,6 @@ class Explorations(dj.Imported):
 
         tracking = tracking[start:first_stim, :]
 
-
         # Put evreything together and insert
         duration = tracking.shape[0]/fps
         d_covered = np.nansum(tracking[:, 2])
@@ -527,7 +534,7 @@ class Explorations(dj.Imported):
         key['fps'] = fps
 
         self.insert1(key)
-        time.sleep(0.5)
+        time.sleep(1)
 
 
 
@@ -541,6 +548,10 @@ class Explorations(dj.Imported):
 # ---------------------------------------------------------------------------- #
 @schema
 class Trials(dj.Imported):
+    ignored_experiments = ('noshelter m1', 'shortexploration m1', 'narrowbridge m5', 'Foraging', 
+                'Lambda maze', 'TwoArmsLong Maze', 'FourArms Maze', 'PathInt2 Close', 'ModelBased', 
+                'ModelBasedV2', 'ModelBasedV3'
+        )
     definition = """
         -> Stimuli
         ---	
@@ -556,8 +567,11 @@ class Trials(dj.Imported):
         escape_duration: float        # duration in seconds
         time_out_of_t: float
 
-        xy: longblob  # tracking of mouse body
+        x: longblob  # tracking of mouse body
+        y: longblob  # tracking of mouse body
         speed: longblob  # tracking of mouse body
+        roi: longblob
+        distance_travelled: longblob
 
         escape_arm: enum('left', "center", "right") 
         origin_arm:  enum('left', "center", "right")        
@@ -569,11 +583,21 @@ class Trials(dj.Imported):
         key['stim_frame'] = -1
         key['out_of_t_frame'] = -1
         key['at_shelter_frame'] = -1
+
+        key['stim_frame_session'] = -1
+        key['experiment_name'] = 'placeholder'
+
         key['escape_duration'] = -1
         key['time_out_of_t'] = -1
-        key['escape_arm'] = 'left'
-        key['origin_arm'] = 'left'
-        key['fps'] = -1
+        key['escape_arm'] = 'center'
+        key['origin_arm'] = 'center'
+
+        key['x'] = -1
+        key['y'] = -1
+        key['speed'] = -1
+        key['roi'] = -1
+        key['distance_travelled'] = -1
+        
 
         self.insert1(key)
 
@@ -582,16 +606,22 @@ class Trials(dj.Imported):
 
 
     @staticmethod
-    def get_by_condition(maze_design=None, naive=None, lights=None, shelter=None, df=True):
+    def get_by_condition(maze_design=None, naive=None, lights=None, clean=True, shelter=None, experiment_name=None, df=True, escape_duration=None):
         '''
             Select trials based on some restrictions
         '''
-        data = Session * Session.Metadata * Session.Shelter * Trials  - 'experiment_name="Foraging"'
+        data = Session.Metadata * Session.Shelter * Trials  - 'experiment_name="Foraging"'
+        data = data - 'experiment_name="placeholder"'
 
-
-        if maze_design == 1 and self.experiment_name != 'shortcut':
+        if maze_design == 1 and experiment_name != 'shortcut':
             # Some sessions fromshortcut are mistakenly labelled as having maze=1 instad of maze=8
             data -= 'experiment_name="shortcut"'
+
+        if experiment_name is not None:
+            data = data & f'experiment_name={experiment_name}'
+
+        if escape_duration is not None:
+            data = data - f'escape_duration > {escape_duration}'
 
         if maze_design is not None:
             data = (data & "maze_type={}".format(maze_design))
@@ -605,8 +635,21 @@ class Trials(dj.Imported):
         if shelter is not None:
             data = (data & "shelter={}".format(1 if shelter else 0))
 
+        if clean:
+            if not df:
+                raise ValueError('Can only clean if returning a dataframe')
+            trials = pd.DataFrame(data)
+            to_drop = []
+            for i, trial in trials.iterrows():
+                tracking = pd.Series((Tracking * Tracking.BodyPart & f'recording_uid="{trial.recording_uid}"' & 'bpname="body"').fetch1())
+                roi = tracking.roi[trial.at_shelter_frame]
+                if roi != 1:
+                    to_drop.append(i)
+            trials.drop(to_drop)
         if df:
-            return pd.DataFrame((data).fetch())
+            trials = pd.DataFrame(data)
+            
+            return Trials.remove_change_of_mind_trials(trials)
         else: 
             return data
 
@@ -619,14 +662,26 @@ class Trials(dj.Imported):
         goodids = []
         for i, trial in trials.iterrows():
             if trial.escape_arm == "left":
-                if np.max(trial.body_xy[:, 0]) > 550: # moue went left and right
+                if np.max(trial.x) > 135: # moue went left and right
                     continue
             elif trial.escape_arm == "right":
-                if np.min(trial.body_xy[:, 0]) < 450: # mouse went right and left
+                if np.min(trial.x) < 85: # mouse went right and left
                     continue
             goodids.append(trial.stimulus_uid)
         
         return trials.loc[trials.stimulus_uid.isin(goodids)]
+
+    @staticmethod
+    def remove_placeholders():
+        '''
+            Removes place holder table entries to clean up the table
+        '''
+        placeholders = Trials & 'experiment_name="placeholder"'
+
+        print(f'Found {len(pd.DataFrame(placeholders).uid.unique())} sessions in place holder entries.')
+        print(placeholders)
+
+        # Trials().delete(placeholders)
 
 if __name__ == "__main__": 
     # pass
@@ -636,8 +691,14 @@ if __name__ == "__main__":
     # plt.show()
     # Recording.drop()
 # 
-    Tracking().populate(display_progress=True)
+    # Tracking().populate(display_progress=True)
     # Tracking().drop()
     
-    # Trials().populate(display_progress=True)
+    Trials().populate(display_progress=True)
     # Trials().drop()
+
+#     # Trials.remove_placeholders()
+
+# plt.scatter(tracking.x[::10], tracking.y[::10], s=tracking.speed[::10]*40, c=tracking.roi[::10])
+# plt.scatter(tracking.x[stim.frame:stim.frame+300], tracking.y[stim.frame:stim.frame+300], s=300, c='r')
+# plt.show()
