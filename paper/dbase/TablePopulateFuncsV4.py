@@ -939,6 +939,6 @@ def make_trials_table(table, key):
 	key['y'] = tracking.y[stim.frame : next_at_shelt]
 	key['speed'] = tracking.speed[stim.frame : next_at_shelt]
 	key['roi'] = tracking.roi[stim.frame : next_at_shelt]
-	key['distance_travelled'] = np.sum(medfilt(tracking.speed[stim.frame : next_at_shelt], 10))
+	key['distance_travelled'] = np.sum(medfilt(tracking.speed[stim.frame : next_at_shelt], 11))
 
 	table.insert1(key)
