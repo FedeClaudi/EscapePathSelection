@@ -572,6 +572,7 @@ class Trials(dj.Imported):
         speed: longblob  # tracking of mouse body
         roi: longblob
         distance_travelled: longblob
+        last_roi: float
 
         escape_arm: enum('left', "center", "right") 
         origin_arm:  enum('left', "center", "right")        
@@ -596,6 +597,7 @@ class Trials(dj.Imported):
         key['y'] = -1
         key['speed'] = -1
         key['roi'] = -1
+        key['last_roi'] = -1
         key['distance_travelled'] = -1
         
 
@@ -636,16 +638,8 @@ class Trials(dj.Imported):
             data = (data & "shelter={}".format(1 if shelter else 0))
 
         if clean:
-            if not df:
-                raise ValueError('Can only clean if returning a dataframe')
-            trials = pd.DataFrame(data)
-            to_drop = []
-            for i, trial in trials.iterrows():
-                tracking = pd.Series((Tracking * Tracking.BodyPart & f'recording_uid="{trial.recording_uid}"' & 'bpname="body"').fetch1())
-                roi = tracking.roi[trial.at_shelter_frame]
-                if roi != 1:
-                    to_drop.append(i)
-            trials.drop(to_drop)
+           data = data & 'last_roi="0.0"'
+           
         if df:
             trials = pd.DataFrame(data)
             

@@ -920,6 +920,21 @@ def make_trials_table(table, key):
 	
 	n_frames_before = int(np.sum(recording_frames[:stim_rec_n]))
 
+	# ensure that the speed is in cm/s not cm/frame
+	if tracking.speed[stim.frame : next_at_shelt].mean() > 10:
+		speed = tracking.speed[stim.frame : next_at_shelt]
+	else:
+		speed = tracking.speed[stim.frame : next_at_shelt] * 40
+
+	# ensures that the mouse reaching the shelter is not a tracking error
+	p1 = np.array([tracking.x[next_at_shelt - 3], tracking.y[next_at_shelt - 3]])
+	p2 = np.array([tracking.x[next_at_shelt], tracking.y[next_at_shelt]])
+
+	if np.linalg.norm(p2 - p1) > 10:
+		logger.debug(f'{stim.stimulus_uid} | mouse at shelter was a tracking error')
+		table._insert_placeholder(key)
+		return
+
 	# Fill in table
 	key['out_of_shelter_frame'] = last_at_shelt
 	key['at_threat_frame'] = got_on_T
@@ -937,8 +952,9 @@ def make_trials_table(table, key):
 
 	key['x'] = tracking.x[stim.frame : next_at_shelt]
 	key['y'] = tracking.y[stim.frame : next_at_shelt]
-	key['speed'] = tracking.speed[stim.frame : next_at_shelt]
+	key['speed'] = speed
 	key['roi'] = tracking.roi[stim.frame : next_at_shelt]
+	key['last_roi'] = tracking.roi[next_at_shelt]
 	key['distance_travelled'] = np.sum(medfilt(tracking.speed[stim.frame : next_at_shelt], 11))
 
 	table.insert1(key)

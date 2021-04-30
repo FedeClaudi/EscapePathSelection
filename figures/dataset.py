@@ -66,6 +66,18 @@ class DataSet:
     def nL(self):
         return self.escape_counts_by_arm()['left']
 
+    def clean(self):
+        '''
+            Removes bad trials which end away from the shelter because
+            of tracking errors
+        '''
+        to_drop = []
+        for i, trial in self.trials.iterrows():
+            if trial.y[-1] < 135:
+                to_drop.append(i)
+
+        self.trials.drop(to_drop, inplace=True)
+
     def escape_numbers_by_arm(self, ignore_center=True):
         '''
             For each available escape arm it computes the nuymber of

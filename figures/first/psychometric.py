@@ -66,9 +66,9 @@ for ax, dataset in track(zip(axes, (M1, M2, M3, M4, M6)), total=5):
         ax.scatter(trial.x[0], trial.y[0], s=30, color=start_color, zorder=10)
         ax.scatter(trial.x[-1], trial.y[-1], s=30, color=end_color, zorder=10)
 
-        ax.set(title=dataset.name)
-        ax.set_aspect('equal', 'box')
-        ax.axis('off')
+    ax.set(title=dataset.name)
+    ax.set_aspect('equal', 'box')
+    ax.axis('off')
 axes[-1].axis('off')
 
 # %%
