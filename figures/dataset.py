@@ -1,6 +1,8 @@
 import pandas as pd
 from dataclasses import dataclass
 
+from figures.bayes import Bayes
+
 @dataclass
 class DataSet:
     name: str
@@ -39,6 +41,10 @@ class DataSet:
         return len(self.trials.mouse_id.unique())
 
     @property
+    def mice(self):
+        return self.trials.mouse_id.unique()
+
+    @property
     def n_sessions(self):
         return len(self.trials.uid.unique())
 
@@ -65,6 +71,37 @@ class DataSet:
     @property
     def nL(self):
         return self.escape_counts_by_arm()['left']
+
+    def mice_pR(self, use_bayes=False):
+        '''
+            Computs the probability of going right for each mouse
+            either raw or with hierarchical bayes
+        '''
+
+        if use_bayes:
+            bayes = Bayes()
+
+            # get data to fit bayes one
+            n_hits_per_mouse = []
+            n_trials_per_mouse = []
+            for mouse in self.mice:
+                trials = self.trials.loc[(self.trials.mouse_id == mouse)&(self.trials.escape_arm != 'center')]
+                n_hits_per_mouse.append(len(trials.loc[trials.escape_arm == 'right']))
+                n_trials_per_mouse.append(len(trials))
+
+            # fit
+            trace, means, stds = bayes.individuals_hierarchical_bayes(self.n_mice, n_hits_per_mouse, n_trials_per_mouse,
+                        n_cores=10)
+
+            return pRs
+        else:
+            pRs = []
+            for mouse in self.mice:
+                trials = self.trials.loc[(self.trials.mouse_id == mouse)&(self.trials.escape_arm != 'center')]
+                pRs.append(len(trials.loc[trials.escape_arm == 'right']) / len(trials))
+
+            return pRs
+            
 
     def clean(self):
         '''

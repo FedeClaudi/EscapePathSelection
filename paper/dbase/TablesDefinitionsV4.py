@@ -371,6 +371,10 @@ class Tracking(dj.Imported):
         tracking data but for all sessions fps=40 and units
         are in physical coordinates.
     '''
+    ignored_experiments = ('PathInt', 'noshelter m1', 'shortexploration m1', 'narrowbridge m5', 'Foraging', 
+                'Lambda maze', 'TwoArmsLong Maze', 'FourArms Maze', 'PathInt2 Close', 'ModelBased', 
+                'ModelBasedV2', 'ModelBasedV3'
+        )
     cm_per_px = 0.22  # each px = cm
     definition = """
         -> TrackingData
@@ -402,9 +406,13 @@ class Tracking(dj.Imported):
         '''
             get data from tracking data and convert to fps and physical size
         '''
+        exp = (Session & key).fetch1('experiment_name')
+        if exp in self.ignored_experiments:
+            return
+
         self.insert1(key)
         time.sleep(1)
-        
+    
         data = pd.DataFrame(TrackingData * TrackingData.BodyPartData & key)
 
         for i, tracking in data.iterrows():	
@@ -418,8 +426,8 @@ class Tracking(dj.Imported):
             xy = xy.interpolate(method='linear', axis=0, limit_direction='backward').values 
             xy = np.vstack(
                 [
-                    rolling_mean(xy[:, 0], int(fps / 4)),
-                    rolling_mean(xy[:, 1], int(fps / 4)),
+                    rolling_mean(xy[:, 0], int(fps / 8)),
+                    rolling_mean(xy[:, 1], int(fps / 8)),
                 ]
             ).T
 
@@ -435,7 +443,11 @@ class Tracking(dj.Imported):
                 rois = self.get_roi_at_each_frame(key, xy)
 
             # convert to physical coordinates
-            xy *= self.cm_per_px
+            # get cm to pixel ratio including CCM
+            p = np.array([1, 0, 0])
+            mtx = (CCM & key).fetch1('correction_matrix')
+            ccm_scale = np.linalg.norm(mtx.dot(p))
+            xy *= self.cm_per_px * 1 / ccm_scale
 
             # get speed trace in cm/s
             speed = get_speed_from_xy(xy[:, 0], xy[:, 1]) * 40
@@ -548,7 +560,7 @@ class Explorations(dj.Imported):
 # ---------------------------------------------------------------------------- #
 @schema
 class Trials(dj.Imported):
-    ignored_experiments = ('noshelter m1', 'shortexploration m1', 'narrowbridge m5', 'Foraging', 
+    ignored_experiments = ('PathInt', 'noshelter m1', 'shortexploration m1', 'narrowbridge m5', 'Foraging', 
                 'Lambda maze', 'TwoArmsLong Maze', 'FourArms Maze', 'PathInt2 Close', 'ModelBased', 
                 'ModelBasedV2', 'ModelBasedV3'
         )
@@ -685,10 +697,10 @@ if __name__ == "__main__":
     # plt.show()
     # Recording.drop()
 # 
-    # Tracking().populate(display_progress=True)
+    Tracking().populate(display_progress=True)
     # Tracking().drop()
     
-    Trials().populate(display_progress=True)
+    # Trials().populate(display_progress=True)
     # Trials().drop()
 
 #     # Trials.remove_placeholders()

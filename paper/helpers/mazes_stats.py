@@ -3,7 +3,7 @@ sys.path.append('./')
 
 import numpy as np
 
-from fcutils.file_io.io import from_yaml
+from fcutils.path import from_yaml
 from fcutils.maths.geometry import calc_distance_from_point
 
 def get_mazes():
