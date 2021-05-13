@@ -123,7 +123,6 @@ tracking.index = tracking.session_name
 notes = from_yaml('D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\modelbased\\notes.yml')
 
 skips = []
-
 for sess, stims in stimuli.items():
     if sess not in notes.keys():
         print('No notes on session: ', sess, ' ', len(stims), ' stimuli')

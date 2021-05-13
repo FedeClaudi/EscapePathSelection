@@ -1,5 +1,6 @@
 from myterial import (
     grey,
+    grey_dark,
     amber_dark,
     blue_grey_dark,
     deep_purple,
@@ -16,6 +17,7 @@ from myterial import (
 
 # --------------------------------- tracking --------------------------------- #
 tracking_color = grey  # used for background tracking traces
+tracking_color_dark = grey_dark
 start_color = amber_dark  # start of tracking
 end_color = blue_grey_dark  # end of tracking
 

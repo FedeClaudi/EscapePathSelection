@@ -5,30 +5,11 @@ import numpy as np
 import pandas as pd
 
 import pymc3 as pm
-from math import factorial as fact
 from scipy.special import binom
-import pickle
-import pydot
-from collections import namedtuple
 
 from fcutils.maths.distributions import get_parametric_distribution, beta_distribution_params
+from fcutils.maths.array import percentile_range
 
-
-
-
-def percentile_range(data, low=5, high=95):
-    """[Calculates the range between the low and high percentiles]
-	"""
-
-    lowp = np.nanpercentile(data, low)
-    highp = np.nanpercentile(data, high)
-    median = np.nanmedian(data)
-    mean = np.nanmean(data)
-    std = np.std(data)
-    sem = stats.sem(data)
-
-    res = namedtuple("percentile", "low median mean high std sem")
-    return res(lowp, median, mean, highp, std, sem)
 
 class Bayes:
     # Bayes hyper params

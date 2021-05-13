@@ -919,12 +919,11 @@ def make_trials_table(table, key):
 	stim_rec_n = list(recordings.recording_uid.values).index(key['recording_uid'])
 	
 	n_frames_before = int(np.sum(recording_frames[:stim_rec_n]))
-
-	# ensure that the speed is in cm/s not cm/frame
-	if tracking.speed[stim.frame : next_at_shelt].mean() > 10:
-		speed = tracking.speed[stim.frame : next_at_shelt]
-	else:
-		speed = tracking.speed[stim.frame : next_at_shelt] * 40
+	
+	# distance travelled
+	distance_travelled = np.sum(np.sqrt(
+            np.diff(tracking.x[stim.frame : next_at_shelt])**2 + np.diff(tracking.y[stim.frame : next_at_shelt])**2
+        ))
 
 	# ensures that the mouse reaching the shelter is not a tracking error
 	p1 = np.array([tracking.x[next_at_shelt - 3], tracking.y[next_at_shelt - 3]])
@@ -952,9 +951,9 @@ def make_trials_table(table, key):
 
 	key['x'] = tracking.x[stim.frame : next_at_shelt]
 	key['y'] = tracking.y[stim.frame : next_at_shelt]
-	key['speed'] = speed
+	key['speed'] = tracking.speed[stim.frame : next_at_shelt]
 	key['roi'] = tracking.roi[stim.frame : next_at_shelt]
 	key['last_roi'] = tracking.roi[next_at_shelt]
-	key['distance_travelled'] = np.sum(medfilt(tracking.speed[stim.frame : next_at_shelt], 11))
+	key['distance_travelled'] = distance_travelled
 
 	table.insert1(key)

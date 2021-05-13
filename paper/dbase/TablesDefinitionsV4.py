@@ -444,10 +444,7 @@ class Tracking(dj.Imported):
 
             # convert to physical coordinates
             # get cm to pixel ratio including CCM
-            p = np.array([1, 0, 0])
-            mtx = (CCM & key).fetch1('correction_matrix')
-            ccm_scale = np.linalg.norm(mtx.dot(p))
-            xy *= self.cm_per_px * 1 / ccm_scale
+            xy *= self.cm_per_px 
 
             # get speed trace in cm/s
             speed = get_speed_from_xy(xy[:, 0], xy[:, 1]) * 40
@@ -620,7 +617,7 @@ class Trials(dj.Imported):
 
 
     @staticmethod
-    def get_by_condition(maze_design=None, naive=None, lights=None, clean=True, shelter=None, experiment_name=None, df=True, escape_duration=None):
+    def get_by_condition(maze_design=None, naive=None, lights=None, shelter=None, experiment_name=None, df=True, escape_duration=None):
         '''
             Select trials based on some restrictions
         '''
@@ -632,7 +629,7 @@ class Trials(dj.Imported):
             data -= 'experiment_name="shortcut"'
 
         if experiment_name is not None:
-            data = data & f'experiment_name={experiment_name}'
+            data = data & f'experiment_name="{experiment_name}"'
 
         if escape_duration is not None:
             data = data - f'escape_duration > {escape_duration}'
@@ -649,12 +646,9 @@ class Trials(dj.Imported):
         if shelter is not None:
             data = (data & "shelter={}".format(1 if shelter else 0))
 
-        if clean:
-           data = data & 'last_roi="0.0"'
            
         if df:
             trials = pd.DataFrame(data)
-            
             return Trials.remove_change_of_mind_trials(trials)
         else: 
             return data
@@ -697,10 +691,10 @@ if __name__ == "__main__":
     # plt.show()
     # Recording.drop()
 # 
-    Tracking().populate(display_progress=True)
+    # Tracking().populate(display_progress=True)
     # Tracking().drop()
     
-    # Trials().populate(display_progress=True)
+    Trials().populate(display_progress=True)
     # Trials().drop()
 
 #     # Trials.remove_placeholders()
