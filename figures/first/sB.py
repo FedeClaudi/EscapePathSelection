@@ -19,13 +19,19 @@ from fcutils.progress import track
 from fcutils.plot.elements import plot_mean_and_error
 from myterial import orange, salmon, grey_dark
 
-from paper import Session, Stimuli, TrackingData, Mouse
+from paper import Session, Stimuli
 
 from figures._data_utils import get_recording_body_tracking, get_recording_maze_component
 from figures._plot_utils import generate_figure, time_xax_params
 from figures.colors import tracking_color, start_color, end_color
 from figures.settings import fps, max_escape_frames, dpi
 from figures.first import fig_1_path
+
+'''
+    Plot tracking after each stimulus in M4 vs at random time points
+
+    Plot the same but just looking at the speed
+'''
 
 # ------------------------------- get all data ------------------------------- #
 

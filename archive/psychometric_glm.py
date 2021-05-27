@@ -245,7 +245,8 @@ testmaze = xtest.maze.values
 xtest = xtest.drop(columns='maze')
 
 
-glm_binom = sm.GLM(ytrain, xtrain[['geodesic_ratio', 'euclidean_ratio', 'const']], family=sm.families.Binomial())
+glm_binom = sm.GLM(ytrain, xtrain[['geodesic_ratio', 'euclidean_ratio', 'const']], 
+                    family=sm.families.Binomial())
 res = glm_binom.fit()
 res.summary()
 

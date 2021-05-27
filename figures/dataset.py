@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass
+from loguru import logger
+import warnings
 
 from fcutils.maths.geometry import calc_angle_between_vectors_of_points_2d as get_orientation
 
@@ -8,6 +10,10 @@ from paper import Tracking
 
 from figures.bayes import Bayes
 from figures._data_utils import register_in_time
+
+
+warnings.filterwarnings("ignore")
+
 
 @dataclass
 class DataSet:
@@ -198,9 +204,19 @@ class DataSet:
             # get orientation while on T
             body = pd.DataFrame(Tracking.BodyPart & f'recording_uid="{trial.recording_uid}"' & 'bpname="body"').iloc[0]
             snout = pd.DataFrame(Tracking.BodyPart & f'recording_uid="{trial.recording_uid}"' & 'bpname="snout"').iloc[0]
+            neck = pd.DataFrame(Tracking.BodyPart & f'recording_uid="{trial.recording_uid}"' & 'bpname="neck"').iloc[0]
+
+            body.interpolate(axis=0, inplace=True)
+            snout.x = pd.Series(np.nanmean(np.vstack([snout.x, neck.x]).T, 1)).interpolate().values
+            snout.y = pd.Series(np.nanmean(np.vstack([snout.y, neck.y]).T, 1)).interpolate().values
 
             orientation = get_orientation(body.x[start:end], body.y[start:end],
                                             snout.x[start:end], snout.y[start:end])
+            if np.any(np.isnan(orientation)):
+                # raise ValueError('Nans should not be here')
+                logger.warning(f'Skipping trial: {trial.stimulus_uid} because there are nans in the angles')
+                continue
+
             if trial.escape_arm == 'right':
                 R.append(orientation)
             elif trial.escape_arm == 'left':
@@ -223,10 +239,14 @@ class DataSet:
         lcount, rcount = 0, 0
         for side in data['escape_arm']:
             if side == 'left':
-                data['orientation'].append(L_aligned[:, lcount])
+                angles = L_aligned[:, lcount]
                 lcount += 1
             else:
-                data['orientation'].append(R_aligned[:, rcount])
+                angles = R_aligned[:, rcount]
                 rcount += 1
+            angles = pd.Series(angles).interpolate().values
 
+            if np.any(np.isnan(angles)):
+                raise ValueError('Nans should not be here')
+            data['orientation'].append(angles)
         return pd.DataFrame(data)

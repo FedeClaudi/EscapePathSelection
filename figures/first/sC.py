@@ -20,6 +20,12 @@ from figures.settings import dpi, max_escape_duration
 
 print(M1, M2, M3, M4, sep='\n\n')
 
+'''
+    Plot correlation between escape distance vs escape duration
+
+    Plot distribution in escape duration for L vs R in each maze
+'''
+
 # %%
 # correlation between escape duration and distance travelled
 ax = generate_figure()
@@ -58,7 +64,7 @@ ax.figure.savefig(fig_1_path / 'panel_S_C_dist_time_correlation.eps', format='ep
 ax = generate_figure()
 
 datasets = (M1, M2, M3, M4, M6)
-shift = .6
+shift = .3
 for n, dataset in enumerate(datasets):
     n = n*3
     L_dur = dataset.L.escape_duration.values
@@ -76,7 +82,8 @@ for n, dataset in enumerate(datasets):
                 kde_normto=0.4,
                 pad=.4, 
                 invert_order=True,
-                color=dataset.color
+                color=dataset.color,
+                spread=0.05,
                 )
 
     triple_plot(
@@ -88,7 +95,9 @@ for n, dataset in enumerate(datasets):
                 box_width=0.2,
                 kde_normto=0.4,
                 pad=0.4,
-                color=dataset.mice_color)
+                color=dataset.mice_color,
+                spread=0.05,
+                )
 
     
 _ = ax.set(xticks=np.arange(5)*3+shift, xticklabels=[ds.name for ds in datasets], ylabel='duration \n (s)', xlabel='maze')

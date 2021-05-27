@@ -9,20 +9,24 @@ sys.path.append('./')
 from fcutils.plot.distributions import plot_distribution
 
 
-from figures._plot_utils import generate_figure, triple_plot
-from figures.colors import tracking_color_dark
+from figures._plot_utils import generate_figure, triple_plot, plot_trial_tracking
+from figures.colors import tracking_color, start_color, end_color
 from figures.first import M6, M4, fig_1_path
 from figures.settings import trace_downsample, dpi
 from figures.bayes import Bayes
 
+'''
+    Plot tracking for all trials in M6
+
+    Plot posteriors for M4 vs M6
+'''
 
 # %%
 # plot tracking data
 ax = generate_figure()
 
 for n, trial in M6.trials.iterrows():
-    ax.plot(trial.x[::trace_downsample], trial.y[::trace_downsample], 
-            color=tracking_color_dark)
+    plot_trial_tracking(ax, trial, tracking_color, start_color, end_color, downsample=trace_downsample)
 ax.axis('off')
 ax.set(title=M6.name)
 ax.figure.savefig(fig_1_path / 'panel_E_tracking.eps', format='eps', dpi=dpi)
@@ -44,7 +48,8 @@ for n, data in enumerate((M4, M6)):
         box_width=.2,
         color=data.color,
         fill=.001,
-        horizontal=True)
+        horizontal=True,
+        spread=0.02)
 
 ax.axhline(0, lw=2, color='k')
 ax.plot([0.5, 0.5], [0, 9], ls='--', lw=2, color=[.4, .4, .4], zorder=-1)

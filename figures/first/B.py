@@ -16,6 +16,13 @@ from figures.settings import dpi
 
 from paper import Tracking
 
+
+'''
+    Plot an example tracking of a full escape on M4 with body orientation
+
+    Plot tracking on T in M4 and average orientaion on T for L vs R
+'''
+
 # %%
 # plot tracking example
 every = 8

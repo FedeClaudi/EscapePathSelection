@@ -21,6 +21,10 @@ from figures.settings import dpi
 print(M1, M2, M3, M4, sep='\n\n')
 
 
+'''
+    Plot psychometric and posteriors for M1 to M4
+'''
+
 
 # %% get
 
@@ -58,9 +62,9 @@ X, Y, YERR = [], [], []
 for n, data in enumerate(datasets):
     # Plot global mean for all trials
     prange = data.grouped_pR()
-    X.append(data.maze['ratio'])
-    Y.append(prange.mean)
-    YERR.append(prange.sem)
+    X.extend([data.maze['ratio'] for _ in data.mice_pR()])
+    Y.extend(data.mice_pR())
+    # YERR.append(prange.sem)
 
     axes[0].scatter(data.maze['ratio'], prange.mean, s=200, edgecolors=data.color, zorder=200, color='w')
 
@@ -69,13 +73,13 @@ for n, data in enumerate(datasets):
         data.maze['ratio'],
         data.mice_pR(),
         axes[0],
-        color=data.color, 
+        color=data.color, -+*+*
         shift=0.005, 
         zorder=100, 
         scatter_kws=dict(s=50), 
-        kde_kwargs=dict(bw=0.075),
+        kde_kwargs=dict(bw=0.05),
         box_width=0.005,
-        kde_normto=.05,
+        kde_normto=.02,
         fill=0.005, 
         pad=0.0,
         spread=0.001,
@@ -94,7 +98,7 @@ curve_params = plot_fitted_curve(
                 axes[0],
                 xrange=[.4, .7], 
                 scatter_kwargs=dict(alpha=0),
-                fit_kwargs = dict(sigma=YERR),
+                # fit_kwargs = dict(sigma=YERR),
                 line_kwargs=dict(color=[.3, .3, .3], alpha=.7, lw=3))
 
 # fix axes

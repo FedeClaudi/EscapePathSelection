@@ -694,8 +694,10 @@ if __name__ == "__main__":
     # Tracking().populate(display_progress=True)
     # Tracking().drop()
     
-    Trials().populate(display_progress=True)
+    # Trials().populate(display_progress=True)
     # Trials().drop()
+
+    Explorations().populate(display_progress=True)
 
 #     # Trials.remove_placeholders()
 

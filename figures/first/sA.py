@@ -17,6 +17,9 @@ from figures.settings import trace_downsample, dpi
 
 from paper import Tracking
 
+'''
+    Plot tracking during exploration for each session in M4
+'''
 
 # %%
 ax = generate_figure()
