@@ -73,7 +73,7 @@ for n, data in enumerate(datasets):
         data.maze['ratio'],
         data.mice_pR(),
         axes[0],
-        color=data.color, -+*+*
+        color=data.color,
         shift=0.005, 
         zorder=100, 
         scatter_kws=dict(s=50), 
@@ -109,4 +109,11 @@ _ = axes[1].axis('off')
 axes[1].figure.savefig(fig_1_path / 'panel_D.eps', format='eps', dpi=dpi)
 
 # %%
+'''
+    look at overalll p(R)
+'''
+import pandas as pd
+all_trials = pd.concat([M1.trials, M2.trials, M3.trials])
 
+pr = len(all_trials.loc[all_trials.escape_arm == 'right']) / len(all_trials)
+print(f'overalll p(R): {pr:.2f}')

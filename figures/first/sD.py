@@ -11,7 +11,7 @@ sys.path.append('./')
 
 from fcutils.path import from_yaml
 
-from paper import Explorations
+from paper import Explorations, Stimuli
 
 from figures.first import M1, M2, M3, M4,M6,  fig_1_path
 from figures._plot_utils import generate_figure, triple_plot
@@ -19,7 +19,7 @@ from figures.settings import dpi
 from figures.bayes import Bayes
 from figures.glm import GLM
 
-datasets = (M1, M2, M3, M4)
+datasets = (M1, M2, M3, M4, M6)
 
 
 '''
@@ -172,31 +172,56 @@ _ = ax.set(ylim=[-0.02, 1.02], xticks=X,
 ax.figure.savefig(fig_1_path / 'panel_S_D_ArmOfOrigin.eps', format='eps', dpi=dpi)
 
 # %%
-# fit GLM on all data
+# # fit GLM on all data
 
-for data in datasets:
-    angle_ratio = data.maze['left_path_angle']/ data.maze['right_path_angle']
-    data.trials['angle_ratio'] = angle_ratio
-    data.trials['geodesic_ratio'] = data.maze['ratio']
-    data.trials['outcomes'] = [1 if arm == 'right' else 0 for arm in data.trials.escape_arm.values]
-    data.trials['origin'] = [1 if arm == 'right' else 0 for arm in data.trials.origin_arm.values]
-    data.trials['maze'] = data.maze['maze_name'].upper()
+# for data in datasets:
+#     angle_ratio = data.maze['left_path_angle']/ data.maze['right_path_angle']
+#     data.trials['angle_ratio'] = angle_ratio
+#     data.trials['geodesic_ratio'] = data.maze['ratio']
+#     data.trials['outcomes'] = [1 if arm == 'right' else 0 for arm in data.trials.escape_arm.values]
+#     data.trials['origin'] = [1 if arm == 'right' else 0 for arm in data.trials.origin_arm.values]
+#     data.trials['maze'] = data.maze['maze_name'].upper()
 
-# glm_data = pd.DataFrame(glm_data)
-glm_data = pd.concat([d.trials for d in datasets]).reset_index()
-glm_data = glm_data[['maze', 'angle_ratio', 'origin', 'geodesic_ratio', 'outcomes']]
+# # glm_data = pd.DataFrame(glm_data)
+# glm_data = pd.concat([d.trials for d in datasets]).reset_index()
+# glm_data = glm_data[['maze', 'angle_ratio', 'origin', 'geodesic_ratio', 'outcomes']]
 
-glm1 = GLM(glm_data, ['angle_ratio', 'geodesic_ratio', 'origin'], ['pR'])
-R2_one, _ = glm1.fit_bootstrapped(repetitions=10000,)
+# glm1 = GLM(glm_data, ['angle_ratio', 'geodesic_ratio', 'origin'], ['pR'])
+# R2_one, _ = glm1.fit_bootstrapped(repetitions=10000,)
 
-glm2 = GLM.from_datasets(datasets)
-R2_two, _ = glm2.fit_bootstrapped(repetitions=10000)
+# glm2 = GLM.from_datasets(datasets)
+# R2_two, _ = glm2.fit_bootstrapped(repetitions=10000)
 
 
-ax = generate_figure()
-ax.hist(R2_one, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - with origin',  color=[.4, .4, .4])
-ax.hist(R2_two, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - without origin', color='salmon', alpha=.6)
-ax.legend()
+# ax = generate_figure()
+# ax.hist(R2_one, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - with origin',  color=[.4, .4, .4])
+# ax.hist(R2_two, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - without origin', color='salmon', alpha=.6)
+# ax.legend()
 
 
 # %%
+'''
+    Average exploration duration and number of stimuli per mouse
+'''
+datasets = (M1, M2, M3, M4, M6)
+expl_durations, n_stimuli = [], []
+for data in datasets:
+    for sess in data.uid.unique():
+        sess_stimuli = pd.DataFrame((Stimuli & f'uid={sess}' & 'overview_frame>0'))
+        n_stimuli.append(len(sess_stimuli))
+
+        exploration = pd.Series((Explorations & f'uid="{sess}"').fetch1())
+        expl_durations.append(exploration.duration_s/60)
+
+
+axes = generate_figure(ncols=2, figsize=(16, 8))
+
+axes[0].hist(expl_durations)
+axes[1].hist(n_stimuli)
+axes[0].set(title='Exploration duration')
+axes[1].set(title='Numbe of stimuli')
+
+
+print(f'Exploration duration average: {np.mean(expl_durations):.2f} - sdev {np.std(expl_durations):.2f}')
+
+print(f'Number of tirals average: {np.mean(n_stimuli):.2f} - sdev {np.std(n_stimuli):.2f}')

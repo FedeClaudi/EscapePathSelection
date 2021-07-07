@@ -128,7 +128,8 @@ ax.figure.savefig(fig_1_path / 'panel_S_B_speed.eps', format='eps', dpi=dpi)
 
 # ------------------------------ test p(shelter) ----------------------------- #
 table = [[
-    np.sum(stim_end_on_shelter), len(stim_end_on_shelter), ],[
+    np.sum(stim_end_on_shelter), len(stim_end_on_shelter), ],
+    [
         np.sum(random_end_on_shelter), len(random_end_on_shelter)
     ]]
 
@@ -138,4 +139,8 @@ if pval < 0.05:
     print(f'[{orange}]The probability of reaching the shelter is [green]different[/green] between the two conditions with p value: {pval}')
 else:
     print(f'[{orange}]The probability of reaching the shelter is [red]NOT different[/red] between the two conditions with p value: {pval}')
+# %%
+p_escape = table[0][0] / table[0][1]
+p_escapecontrol = table[1][0] / table[1][1]
+print(f'Probability of reaching shelter after stim {p_escape:.3f} vs control {p_escapecontrol:.3f}')
 # %%

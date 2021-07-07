@@ -22,7 +22,7 @@ datasets = (M1, M2, M3, M4, M6)
 
 # %%
 glm = GLM.from_datasets(datasets)
-# R2, params = glm.fit_bootstrapped(repetitions=5000)
+R2, params = glm.fit_bootstrapped(repetitions=50)
 # 
 
 ax = generate_figure()
