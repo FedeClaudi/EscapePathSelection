@@ -32,8 +32,6 @@ from fcutils.maths import rolling_mean
 
 
 from figures.third import PsychometricM1, PsychometricM6, QTableModel, DynaQModel, InfluenceZones
-
-
 from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 
 '''
