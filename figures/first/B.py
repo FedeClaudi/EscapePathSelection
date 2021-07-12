@@ -54,7 +54,44 @@ ax.figure.savefig(fig_1_path / 'panel_B_tracking_example.eps', format='eps', dpi
 # %%
 # plot average heading while on threat platform
 
-axes = plot_threat_tracking_and_angle(M4)
+# keep only trials from dead end experiments
+M4.trials = M4.trials.loc[(M4.trials.uid > 88)&(M4.trials.uid < 100)]
+print(len(M4.trials))
+
+axes, L, R = plot_threat_tracking_and_angle(M4, catwalk_only=False)
 axes[0].figure.savefig(fig_1_path / 'panel_B_angles.eps', format='eps', dpi=dpi)
 
 # %%
+import matplotlib.pyplot as plt
+import numpy as np
+
+f = plt.figure(figsize=(16, 9))
+ax1 = f.add_subplot(121, projection='polar')
+ax2 = f.add_subplot(122, projection='polar')
+ax1.set_theta_zero_location("N")
+ax2.set_theta_zero_location("N")
+ax1.set_theta_direction(-1)
+ax2.set_theta_direction(-1)
+
+nframes = len(L.orientation.iloc[0])
+for step in range(nframes):
+    l = np.mean([orientation[step-5:step] for orientation in L.orientation])
+    r = np.mean([orientation[step-5:step] for orientation in R.orientation])
+
+    if step % 5 == 0:
+        width = 0.1 
+        alpha = 1 * (step / nframes)
+    else:
+        continue
+
+    ax1.arrow(l/180.*np.pi, 0.5, 0, 1, alpha = alpha, width = width,
+                 edgecolor = 'black', facecolor = tracking_color,zorder = 5)
+    ax2.arrow(r/180.*np.pi, 0.5, 0, 1, alpha = alpha, width = width,
+                 edgecolor = 'black', facecolor = tracking_color, zorder = 5)
+
+ax1.set(title='left trials', yticks=[])
+ax2.set(title='right trials', yticks=[])
+ax.figure.savefig(fig_1_path / 'panel_B_angles_POLAR.eps', format='eps', dpi=dpi)
+
+# %%
+

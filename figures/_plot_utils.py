@@ -122,6 +122,7 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
         axes = generate_figure(ncols=2, figsize=(16, 8))
     trials = dataset.get_orientations_on_T(n_samples=n_samples, **kwargs)
 
+    # plot tracking
     for i, trial in trials.iterrows():
         if trial.escape_arm == 'right':
             color=rcolor
@@ -138,11 +139,14 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
             zorder=100
         )
 
-
+    # plot angles
     L = trials.loc[trials.escape_arm == 'left']
     R = trials.loc[trials.escape_arm == 'right']
     for data, color, lbl in zip((L, R), (lcolor, rcolor), ('left', 'right')):
-        angles = np.vstack(data.orientation.values).T
+        try:
+            angles = np.vstack(data.orientation.values).T
+        except ValueError:
+            print(f'Could not get orientation for data: {data} ({lbl})')
 
         mu = np.degrees(circmean(np.radians(angles), axis=1, ))
         sigma = np.degrees(circstd(np.radians(angles), axis=1, ))
