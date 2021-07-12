@@ -38,7 +38,7 @@ for ax, maze in zip(axes, MAZES):
 axes[0].set(title='M1', xlabel='episodes', ylabel='distance covered (a.u.)')
 axes[1].set(title='M6', xlabel='episodes')
 clean_axes(f)
-f.suptitle('C | distance travelled training curve')
+f.suptitle('distance travelled training curve')
 
 f.savefig(fig_3_path / 'panel_SA_learning_curves_dist_trvld.eps', format='eps', dpi=dpi)
 plt.show()

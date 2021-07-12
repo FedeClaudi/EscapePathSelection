@@ -16,7 +16,8 @@ from figures.settings import dpi
 
 ROLLING_MEAN_WINDOW = 6
 
-excluded = ['DynaQ_30', 'InfluenceZones']
+# excluded = ['DynaQ_30', 'InfluenceZones']
+excluded = []
 
 f, axes = plt.subplots(figsize=(12, 8), ncols=2, sharex=True, sharey=True)
 for ax, maze in zip(axes, MAZES):

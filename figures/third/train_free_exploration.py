@@ -28,10 +28,10 @@ logger.remove()
 logger.add(sys.stdout, level='INFO')
 # -------------------------------- parameters -------------------------------- #
 
-N_REPS_MODEL = 100 # number of times each model is ran.
+N_REPS_MODEL = 50 # number of times each model is ran.
 
 # change training settings to reflect parametsr
-TRAINING_SETTINGS['episodes'] = 75
+TRAINING_SETTINGS['episodes'] = 100
 TRAINING_SETTINGS['max_n_steps'] = 500
 
 agents =  {
@@ -46,14 +46,8 @@ agent_kwargs = {
     'QTable':dict(),
     'DynaQ_30':dict(n_planning_steps=30),   
     'DynaQ_5':dict(n_planning_steps=5),
-    'InfluenceZones':{
-        'learning_rate': .8,
-        'predict_with_shelter_vector':True
-    },
-    'InfluenceZonesNoSheltVec':{
-        'learning_rate': .8,
-        'predict_with_shelter_vector':False
-    },
+    'InfluenceZones':dict(predict_with_shelter_vector=True),
+    'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False),
 }
 
 # ---------------------------------------------------------------------------- #
@@ -63,11 +57,9 @@ def run():
     for maze_name, maze in zip(('M1', 'M6'), (PsychometricM1, PsychometricM6)):
         logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
 
-        # results = {
-        #     distance_covered=[]
-        # }
+
         for name, model in agents.items():
-            logger.info(f'      training agent: {name} | {N_REPS_MODEL} reps')
+            logger.info(f'      training agent: {name} | {N_REPS_MODEL} reps | on {maze_name}')
 
             # run all instances in parallel
             pool = multiprocessing.Pool(processes = 10)
@@ -94,8 +86,6 @@ def run():
                 training_results['success'].append(
                     np.mean([th.successes_history[epn] for th in training_history])
                 )
-
-
                 training_results['n_steps_sem'].append(
                     sem([th.episode_length_history[epn] for th in training_history])
                 )
@@ -113,7 +103,6 @@ def run():
                 'escape_arm': [r[3] for r in run_results],
             }
             pd.DataFrame(escape_results).to_hdf(f'./cache/{name}_escape_on_{maze_name}.h5', key='hdf')
-
 
 # ------------------------------- run instance ------------------------------- #
 def run_instance(args):

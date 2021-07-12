@@ -3,6 +3,13 @@ RANDOM_INIT_POS = True  # if true during learning start position is random (when
 TRACKING_TAKE_ALL_ACTIONS = False  # if true when training on tracking data the agent
     # attempts all actions (not options) at each state. 
 
+# TRAINING_SETTINGS = dict(
+#     discount=.9999, 
+#     exploration_rate=.4, 
+#     learning_rate=.3,
+#     episodes=100,
+#     max_n_steps = 500,
+# )
 TRAINING_SETTINGS = dict(
     discount=.8, 
     exploration_rate=.4, 
