@@ -44,5 +44,4 @@ f.savefig(fig_3_path / 'panel_SA_learning_curves_dist_trvld.eps', format='eps', 
 plt.show()
 
 
-    
 

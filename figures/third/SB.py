@@ -31,13 +31,16 @@ for ax, maze in zip(axes, MAZES):
         # load data
         try:
             data = pd.read_hdf(f'./cache/{model}_escape_on_{maze}.h5', key='hdf')
+            if not len(data):
+                raise ValueError
         except Exception as e:
             print(f'Could not load {model} on {maze}', f'./cache/{model}_escape_on_{maze}.h5', e, sep='\n')
             continue
         
         n_success = len(data.loc[data.escape_arm.isin(['left', 'right'])])
 
-        logger.info(f'|maze {maze}| MODEL: "{model}"q  p(success)={n_success/len(data) if n_success else 0}')
+        logger.info(f'|maze {maze}| MODEL: "{model}"  p(success)={n_success/len(data) if n_success else 0}')
+
         if n_success == 0:
             continue
 

@@ -28,24 +28,24 @@ logger.remove()
 logger.add(sys.stdout, level='INFO')
 # -------------------------------- parameters -------------------------------- #
 
-N_REPS_MODEL = 50 # number of times each model is ran.
+N_REPS_MODEL = 100 # number of times each model is ran.
 
 # change training settings to reflect parametsr
-TRAINING_SETTINGS['episodes'] = 100
+TRAINING_SETTINGS['episodes'] = 50
 TRAINING_SETTINGS['max_n_steps'] = 500
 
 agents =  {
     'QTable':QTableModel,
-    'DynaQ_5':DynaQModel,
+    'DynaQ_3':DynaQModel,
     'DynaQ_30':DynaQModel,
     'InfluenceZones':InfluenceZones,
     'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 agent_kwargs = {
-    'QTable':dict(),
+    'QTable':dict(learning_rate=.8),
     'DynaQ_30':dict(n_planning_steps=30),   
-    'DynaQ_5':dict(n_planning_steps=5),
+    'DynaQ_3':dict(n_planning_steps=3),
     'InfluenceZones':dict(predict_with_shelter_vector=True),
     'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False),
 }
@@ -86,6 +86,8 @@ def run():
                 training_results['success'].append(
                     np.mean([th.successes_history[epn] for th in training_history])
                 )
+
+                
                 training_results['n_steps_sem'].append(
                     sem([th.episode_length_history[epn] for th in training_history])
                 )
@@ -95,14 +97,17 @@ def run():
                 training_results['success_sem'].append(
                     sem([th.successes_history[epn] for th in training_history])
                 )
+
             pd.DataFrame(training_results).to_hdf(f'./cache/{name}_training_on_{maze_name}.h5', key='hdf')
 
             escape_results = {  # one for each rep of the model
-                'rewards': [r[0] for r in run_results],
+                'rewards': [r[1] for r in run_results],
                 'n_steps': [r[2] for r in run_results],
                 'escape_arm': [r[3] for r in run_results],
+                'status': [r[4] for r in run_results],
             }
             pd.DataFrame(escape_results).to_hdf(f'./cache/{name}_escape_on_{maze_name}.h5', key='hdf')
+
 
 # ------------------------------- run instance ------------------------------- #
 def run_instance(args):
@@ -139,18 +144,21 @@ def run_instance(args):
 
     # do a play run
     try:
-        _, play_steps, play_reward, escape_arm = _maze.play(agent)
-    except Exception:
+        status, play_steps, play_reward, escape_arm = _maze.play(agent, start_cell=_maze.START)
+    except Exception as e:
+        logger.warning(f'exception when running the model in play mode:\n{e}')
         play_steps = np.nan
         play_reward = np.nan
         escape_arm = np.nan
+        status = np.nan
 
-    print(f'\n[{green}]Finished[/{green}]: Model: [b {pink}]{name}[/b {pink}] - Iteration [{blue_light}]{rep+1}/{N_REPS_MODEL}[/{blue_light}]')
+    print(f'\n[{green}]Finished[/{green}]: Model: [b {pink}]{name}[/b {pink}] - Iteration [{blue_light}]{rep+1}/{N_REPS_MODEL}[/{blue_light}] - play status: {status}')
     return (
         agent.training_history,
         play_reward,
         play_steps,
-        escape_arm
+        escape_arm,
+        status,
     )
 
 
