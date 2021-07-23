@@ -28,26 +28,22 @@ logger.remove()
 logger.add(sys.stdout, level='INFO')
 # -------------------------------- parameters -------------------------------- #
 
-N_REPS_MODEL = 100 # number of times each model is ran.
+N_REPS_MODEL = 64 # number of times each model is ran.
 
 # change training settings to reflect parametsr
-TRAINING_SETTINGS['episodes'] = 50
+TRAINING_SETTINGS['episodes'] = 250
 TRAINING_SETTINGS['max_n_steps'] = 500
 
 agents =  {
-    'QTable':QTableModel,
-    'DynaQ_3':DynaQModel,
-    'DynaQ_30':DynaQModel,
-    'InfluenceZones':InfluenceZones,
+    # 'QTable':QTableModel,
+    # 'DynaQ_20':DynaQModel,
     'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 agent_kwargs = {
-    'QTable':dict(learning_rate=.8),
-    'DynaQ_30':dict(n_planning_steps=30),   
-    'DynaQ_3':dict(n_planning_steps=3),
-    'InfluenceZones':dict(predict_with_shelter_vector=True),
-    'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False),
+    'QTable':dict(learning_rate=.9, penalty_move = 1e-8),
+    'DynaQ_20':dict(n_planning_steps=20),   
+    'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False, learning_rate=.2, discount=.8),
 }
 
 # ---------------------------------------------------------------------------- #
@@ -55,48 +51,44 @@ agent_kwargs = {
 # ---------------------------------------------------------------------------- #
 def run():
     for maze_name, maze in zip(('M1', 'M6'), (PsychometricM1, PsychometricM6)):
-        logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
+        if maze_name == 'M1':
+            continue
 
+        logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
 
         for name, model in agents.items():
             logger.info(f'      training agent: {name} | {N_REPS_MODEL} reps | on {maze_name}')
 
             # run all instances in parallel
-            pool = multiprocessing.Pool(processes = 10)
+            pool = multiprocessing.Pool(processes = 8)
             arguments = [(maze, model, name, rep) for rep in range(N_REPS_MODEL)]
             run_results = pool.map(run_instance, arguments)
 
             # get average results for each episode during training
             training_history = [r[0] for r in run_results]
-            training_results = {  # average of N episodes for rep of agent (avg across reps)
+            training_results = {  # average of N episodes for rep of agent (avg across reps for each episode)
                 'n_steps':[],
                 'distance_travelled':[],
                 'success':[],
                 'n_steps_sem':[],
                 'distance_travelled_sem':[],
                 'success_sem':[],
+                'play_status':[],
+                'play_status_sem':[],
+                'play_steps':[],
+                'play_steps_sem':[],
             }
             for epn in range(TRAINING_SETTINGS['episodes']):
-                training_results['n_steps'].append(
-                    np.mean([th.episode_length_history[epn] for th in training_history])
-                )
-                training_results['distance_travelled'].append(
-                    np.mean([th.episode_distance_history[epn] for th in training_history])
-                )
-                training_results['success'].append(
-                    np.mean([th.successes_history[epn] for th in training_history])
-                )
-
-                
-                training_results['n_steps_sem'].append(
-                    sem([th.episode_length_history[epn] for th in training_history])
-                )
-                training_results['distance_travelled_sem'].append(
-                    sem([th.episode_distance_history[epn] for th in training_history])
-                )
-                training_results['success_sem'].append(
-                    sem([th.successes_history[epn] for th in training_history])
-                )
+                keys = [
+                    ('n_steps', 'episode_length_history'),
+                    ('distance_travelled', 'episode_distance_history'),
+                    ('success', 'successes_history'),
+                    ('play_status', 'play_status_history'),
+                    ('play_steps', 'play_steps_history'),
+                ]
+                for k, v in keys:
+                    training_results[k].append(np.mean([th.data[v][epn] for th in training_history]))
+                    training_results[k+'_sem'].append(sem([th.data[v][epn] for th in training_history]))
 
             pd.DataFrame(training_results).to_hdf(f'./cache/{name}_training_on_{maze_name}.h5', key='hdf')
 
@@ -123,12 +115,12 @@ def run_instance(args):
     rewards = REWARDS.copy()
     for param in agent_kwargs[name].keys():
         if param in settings.keys():
-            print(f'[dim]Overring default settings value for {param}')
+            # print(f'[dim]Overring default settings value for {param}')
             del settings[param]
 
         # adjust rewards per model
         if param in rewards.keys():
-            print(f'[dim]Overring default reward value for {param}')
+            # print(f'[dim]Overring default reward value for {param}')
             rewards[param] = agent_kwargs[name][param]
 
     # create an instance
@@ -138,7 +130,7 @@ def run_instance(args):
     agent = model(_maze, name=_maze.name, **settings, **agent_kwargs[name])
 
     # train
-    agent.train(random_start=RANDOM_INIT_POS, episodes=TRAINING_SETTINGS['episodes'])
+    agent.train(random_start=RANDOM_INIT_POS, episodes=TRAINING_SETTINGS['episodes'], test_performance=True)
 
     # raise ValueError(agent.training_history.episode_length_history)
 

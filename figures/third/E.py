@@ -21,7 +21,7 @@ from figures.third import MODELS_COLORS, MODELS, MAZES, fig_3_path
 from figures.settings import dpi
 
 '''
-    Plot comulative successes for models trained on guided epxloration
+    Plot the p(R) of models trained on guided exploration
 ''' 
 
 ROLLING_MEAN_WINDOW = 21
@@ -37,19 +37,19 @@ f, axes = plt.subplots(ncols=2, figsize=(16, 9), sharex=False, sharey=True)
 for n, maze in enumerate(data.maze.unique()):
     for mn, model in enumerate(data.model.unique()):
         print(model)
-        exp = np.array(data.loc[(data.model == model)&(data.maze == maze)].results.iloc[0])
+        arms = data.loc[(data.model == model)&(data.maze == maze)].escape_arms.iloc[0]
 
-        mean = np.mean(np.cumsum(exp, 0), 1)
-        std = np.std(np.cumsum(exp, 0), 1)
-        plot_mean_and_error(mean, std, axes[n], lw=4, color=MODELS_COLORS[mn], label=model)
+        pr = np.nanmean(arms)
+
+        axes[n].bar(mn, pr, color=MODELS_COLORS[mn], label=MODELS[mn])
 
 axes[0].legend()
 axes[1].legend()
-axes[0].set(title='M1', ylabel='comulative successs', xlabel='number of sessions')
+axes[0].set(title='M1', ylabel='p(R)', xlabel='number of sessions')
 axes[1].set(title='M6', xlabel='number of sessions')
 
 clean_axes(f)
-f.savefig(fig_3_path / 'panel_E_pR.eps', format='eps', dpi=dpi)
+f.savefig(fig_3_path / 'panel_E_PR.eps', format='eps', dpi=dpi)
 plt.show()
 
 
