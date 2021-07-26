@@ -117,3 +117,10 @@ all_trials = pd.concat([M1.trials, M2.trials, M3.trials])
 
 pr = len(all_trials.loc[all_trials.escape_arm == 'right']) / len(all_trials)
 print(f'overalll p(R): {pr:.2f}')
+
+# %%
+# TOT
+L = all_trials.loc[all_trials.escape_arm == 'right'].time_out_of_t
+R = all_trials.loc[all_trials.escape_arm == 'left'].time_out_of_t
+
+print(f'Time out of T: right {R.mean():.2f} +/- {R.std()} | left {L.mean():.2f} +/- {L.std()}')

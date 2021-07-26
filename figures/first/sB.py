@@ -36,7 +36,8 @@ from figures.first import fig_1_path
 # ------------------------------- get all data ------------------------------- #
 
 # get sessions
-sessions = Session().get_by(maze=4)
+sessions = pd.DataFrame(Session().get_by(maze=4))
+sessions = sessions.loc[(sessions.uid > 88)&(sessions.uid < 100)]
 
 # get stimuli
 stimuli = Stimuli.get_by_sessions(sessions)

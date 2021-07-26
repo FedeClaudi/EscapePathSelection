@@ -91,7 +91,7 @@ for step in range(nframes):
 
 ax1.set(title='left trials', yticks=[])
 ax2.set(title='right trials', yticks=[])
-ax.figure.savefig(fig_1_path / 'panel_B_angles_POLAR.eps', format='eps', dpi=dpi)
+ax1.figure.savefig(fig_1_path / 'panel_B_angles_POLAR.eps', format='eps', dpi=dpi)
 
 # %%
 

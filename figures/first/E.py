@@ -20,6 +20,7 @@ from figures.bayes import Bayes
 
     Plot posteriors for M4 vs M6
 '''
+print(M6)
 
 # %%
 # plot tracking data
@@ -59,4 +60,27 @@ ax.figure.savefig(fig_1_path / 'panel_E_posteriors.eps', format='eps', dpi=dpi)
 
 
 # %%
-M6.pR
+from rich import print
+from scipy.stats import fisher_exact
+table = [
+    [
+        M4.nR, M4.n_trials, 
+    ],
+    [
+        M6.nR, M6.n_trials
+    ]]
+
+from scipy.stats import chisquare
+
+print(chisquare(
+    [M4.nR, M6.nR],
+    [0.5 * M4.n_trials, 0.5 * M6.n_trials]
+))
+
+
+# _, pval = fisher_exact(table)
+# if pval < 0.05:
+#     print(f'The probability of reaching the shelter is [green]different[/green] between the two conditions with p value: {pval}')
+# else:
+#     print(f'The probability of reaching the shelter is [red]NOT different[/red] between the two conditions with p value: {pval}')
+# %%
