@@ -1,50 +1,66 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from fcutils.plot.figure import clean_axes
-from fcutils.plot.elements import plot_mean_and_error
-from fcutils.maths import rolling_mean
 
 import sys
 sys.path.append('./')
+import matplotlib.pyplot as plt
+from loguru import logger
+import numpy as np
 
-from figures.third import MODELS_COLORS, MODELS, MAZES, fig_3_path
+from fcutils.plot.figure import clean_axes
+
+from figures.third import PsychometricM1, PsychometricM6, QTableTracking, fig_3_path
+from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 from figures.settings import dpi
-'''
-    Plot the taining curves of all models (p(success))
+
 ''' 
+number of state changes
 
-ROLLING_MEAN_WINDOW = 6
+M1: 753.49 +/- 264.938
+M6: 790.60 +/- 269.019
+'''
 
-# excluded = ['DynaQ_30', 'InfluenceZones']
-excluded = []
+logger.remove()
+logger.add(sys.stdout, level='INFO')
 
-f, axes = plt.subplots(figsize=(12, 8), ncols=2, sharex=True, sharey=True)
-for ax, maze in zip(axes, MAZES):
-    for model, color in zip(MODELS, MODELS_COLORS):
-        if model in excluded:
-            continue
+f, axes = plt.subplots(ncols=2, figsize=(16, 9), sharex=True, sharey=True)
+for n, (_maze, fname) in enumerate(zip((PsychometricM6, PsychometricM1), ('M6', 'M1'))):
 
-        # load data
+    maze = _maze(REWARDS)
+    n_state_changes = []
+    n_sessions, n_accepted = 0, 0
+    accepted_sessions = []
+    for session_n in range(100):
+
         try:
-            data = pd.read_hdf(f'./cache/{model}_training_on_{maze}.h5', key='hdf')
-        except Exception as e:
-            print(f'Could not load {model} on {maze}', f'./cache/{model}_training_on_{maze}.h5', e, sep='\n')
-            continue
-        
-        plot_mean_and_error(rolling_mean(data.success, ROLLING_MEAN_WINDOW), 
-                        rolling_mean(data.success_sem, ROLLING_MEAN_WINDOW), ax, label=model, color=color)
-    ax.legend()
+            model = QTableTracking(
+                    maze, 
+                    fname,
+                    take_all_actions=False,
+                    trial_number=session_n,
+                    name=maze.name,
+                    **TRAINING_SETTINGS)
 
-axes[0].set(title='M1', xlabel='episodes', ylabel='accuracy')
-axes[1].set(title='M6', xlabel='episodes', ylim=[0, 1])
+        except Exception: 
+            break
+        else:
+            # model.plot_tracking()
+            # plt.show()
+            n_sessions += 1
+
+        logger.info(f'|Maze {maze.name}| session {session_n} - {len(model.tracking)} state transitions | {len(model.tracking_errors)} errors')
+        if len(model.tracking_errors) < 5:
+            n_accepted += 1
+            accepted_sessions.append(session_n)
+            n_state_changes.append(len(model.tracking))
+
+    axes[n].hist(n_state_changes, bins=10)
+    axes[n].axvline(np.mean(n_state_changes), color='r')
+    axes[n].set(title=maze.name, ylabel='counts', xlabel='# state changes')
+    logger.info(f'-- maze: {maze.name} -- {n_accepted}/{n_sessions} accepted')
+    logger.info(f'-- maze: {maze.name} -- mean number of steps: {np.mean(n_state_changes):.2f} +/- {np.std(n_state_changes):.3f}\n\n')
+    print(f'{maze.name} - accepted sessions {accepted_sessions}')
+
+
 clean_axes(f)
-f.suptitle('C | success training curve')
-f.savefig(fig_3_path / 'panel_C_learning_curves.eps', format='eps', dpi=dpi)
 plt.show()
-
-
-
-
-    
+f.savefig(fig_3_path / 'panel_C_guided_exploration_n_state_transitions_histograms.eps', format='eps', dpi=dpi)
 
