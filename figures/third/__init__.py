@@ -1,16 +1,14 @@
 import sys
 from pathlib import Path
-# import RL code from https://github.com/FedeClaudi/Reinforcement-Learning-Maze.git
+
 if 'darwin' not in sys.platform:
-    sys.path.append(r'C:\Users\Federico\Documents\GitHub\mazeRL')
     fig_3_path = Path(r'D:\Dropbox (UCL)\Rotation_vte\Writings\BehavPaper\Figure3')
 else:
-    sys.path.append('/Users/federicoclaudi/Documents/Github/Reinforcement-Learning-Maze')
     fig_3_path = Path('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Figure3')
 
-from environment.environment import Status
-from environment.mazes import PsychometricM1, PsychometricM6
-from models import QTableModel, DynaQModel, InfluenceZones, QTableTracking, DynaQTracking, InfluenceZonesTracking
+from rl.environment.environment import Status
+from rl.environment.mazes import PsychometricM1, PsychometricM6
+from rl.models import QTableModel, DynaQModel, InfluenceZones, QTableTracking, DynaQTracking, InfluenceZonesTracking
 
 from myterial import salmon, indigo, green
 

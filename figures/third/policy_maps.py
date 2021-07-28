@@ -23,7 +23,7 @@ sys.path.append('./')
 from myterial.utils import map_color
 
 
-from environment.actions import Actions
+from rl.environment.actions import Actions
 
 from figures.third import MODELS_COLORS, MODELS, MAZES, fig_3_path
 from figures.settings import dpi
