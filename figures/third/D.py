@@ -29,34 +29,27 @@ ROLLING_MEAN_WINDOW = 21
 
 data = pd.read_hdf(f'/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/guided_exploration.h5', key='hdf')
 print(data)
-# %%
-
-        
-f, axes = plt.subplots(ncols=2, figsize=(16, 9), sharex=False, sharey=True)
-
-for n, maze in enumerate(data.maze.unique()):
-    for mn, model in enumerate(data.model.unique()):
-        print(model)
-        exp = np.array(data.loc[(data.model == model)&(data.maze == maze)].results.iloc[0])
-
-        mean = np.mean(np.cumsum(exp, 0), 1)
-        std = np.std(np.cumsum(exp, 0), 1)
-        plot_mean_and_error(mean, std, axes[n], lw=4, color=MODELS_COLORS[mn], label=model)
-
-axes[0].legend()
-axes[1].legend()
-axes[0].set(title='M1', ylabel='comulative successs', xlabel='number of sessions')
-axes[1].set(title='M6', xlabel='number of sessions')
-
-clean_axes(f)
-f.savefig(fig_3_path / 'panel_E_pR.eps', format='eps', dpi=dpi)
-plt.show()
-
-
-
 
     
 
 
 
+# %%
+f, ax = plt.subplots(figsize=(12, 8))
+
+for mn, (model, color) in enumerate(zip(data.model.unique(), MODELS_COLORS)):
+    print(model)
+    exp = np.array(data.loc[(data.model == model)&(data.maze == 'M1')].results.iloc[0])
+
+    mean = np.mean(exp, 1)
+    for n, mu in enumerate(mean):
+        if mu>.8:
+            y = .5+ mn * 0.025
+        else:
+            y =  mn * 0.025
+
+        ax.scatter(n, y, color=color, s=150)
+ax.set(yticks=[0.025, .525], yticklabels=['fail', 'success'], xlabel='session #')
+clean_axes(f)
+f.savefig(fig_3_path / 'panel_D_guided_expl_successes.eps', format='eps', dpi=dpi)
 # %%

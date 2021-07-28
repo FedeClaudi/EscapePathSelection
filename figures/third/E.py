@@ -52,9 +52,7 @@ clean_axes(f)
 f.savefig(fig_3_path / 'panel_E_PR.eps', format='eps', dpi=dpi)
 plt.show()
 
-
-
-
+     
     
 
 

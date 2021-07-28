@@ -69,7 +69,7 @@ for maze_number, (maze_name, maze) in enumerate(zip(MAZES, (PsychometricM1, Psyc
                 _model.train(film=False)
 
                 # test
-                status, play_steps, play_reward, escape_arm = _maze.play(_model, start_cell=_maze.START)
+                status, play_steps, play_reward, escape_arm, states = _maze.play(_model, start_cell=_maze.START)
                 logger.info(f'          finished with status: {status}\n')
                 session_results.append(1 if status == Status.WIN else 0)
 

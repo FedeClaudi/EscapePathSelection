@@ -136,7 +136,7 @@ def run_instance(args):
 
     # do a play run
     try:
-        status, play_steps, play_reward, escape_arm = _maze.play(agent, start_cell=_maze.START)
+        status, play_steps, play_reward, escape_arm, states = _maze.play(agent, start_cell=_maze.START)
     except Exception as e:
         logger.warning(f'exception when running the model in play mode:\n{e}')
         play_steps = np.nan
