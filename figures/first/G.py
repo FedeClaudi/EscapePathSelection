@@ -31,7 +31,7 @@ datasets = (M1, M2, M3, M4, M6)
 '''
 
 # ----------------------------- p(R) naive vs nor ---------------------------- #
-axes = generate_figure(ncols=5, figsize=(16, 8), sharex=False, sharey=True)
+axes = generate_figure(ncols=5, figsize=(16, 8), sharex=True, sharey=True)
 
 for ax, dataset in zip(axes, datasets):
     # get naive and not naive trials
@@ -39,6 +39,7 @@ for ax, dataset in zip(axes, datasets):
     naive_mice = naive.mouse_id.unique()
     naive_trials_ids = []
 
+    # only the first trial from each naive mouse
     for mouse in naive_mice:
         mouse_trials = naive.loc[naive.mouse_id == mouse] 
         naive_trials_ids.append(mouse_trials.index[0])
@@ -57,7 +58,7 @@ for ax, dataset in zip(axes, datasets):
         selected = not_naive_trials.sample(N)
         random_samples.append(get_pR_from_trials_df(selected))
 
-    ax.hist(random_samples, color=blue_grey, label='not-naive trials', density=True, bins=5)
+    ax.hist(random_samples, color=blue_grey, label='not-naive trials', density=True, bins=10)
     prange = percentile_range(random_samples)
     ball_and_errorbar(
         prange.mean, 
@@ -72,7 +73,7 @@ for ax, dataset in zip(axes, datasets):
     p = get_pR_from_trials_df(naive_trials)
     ax.plot(
         [p, p],
-        [0, 6],
+        [0, 1],
         lw=10,
         color = dataset.color,
         label = 'naive trials',
@@ -88,58 +89,5 @@ axes[0].figure.suptitle('naive vs not naive p(R)')
 axes[0].set(ylabel='density')
 axes[1].axis('off')
 
-ax.figure.savefig(fig_1_path / 'panel_G_histograms.eps', format='eps', dpi=dpi)
+ax.figure.savefig(fig_1_path / 'panel_G_histograms_more_bins.eps', format='eps', dpi=dpi)
 
-# %%
-'''
-    Plot p(R) vs time in session
-'''
-bayes = Bayes()
-axes = generate_figure(nrows=5, figsize=(16, 9), sharex=True)
-
-cutoff = 60 * 60 * 1  # ignore trials after 2h of experiment
-bins = np.linspace(0, cutoff, 10)
-for ax, data in zip(axes, datasets):
-    # bin trials by time in session
-    data.trials['fps'] = [30 if t.uid < 184 else 40 for i,t in data.trials.iterrows()]
-    data.trials['time_in_session'] = data.trials['stim_frame_session'] / data.trials['fps']
-    data.trials = data.trials.loc[
-            (data.trials.time_in_session <= cutoff) &
-            (data.trials.escape_arm.isin(['left', 'right']))
-            ]
-    data.trials['bin'] = pd.cut(data.trials['time_in_session'], bins=bins)
-    data.trials['sortkey'] = data.trials.bin.map(lambda x: x.left)
-    data.trials = data.trials.sort_values('sortkey')
-
-    # plot pR as posterior for each bin
-    X, trials_count = [], []
-    for bin in data.trials.bin.unique():
-        trials = data.trials.loc[data.trials.bin == bin]
-        window_size = bin.right - bin.left
-        X.append(bin.left + window_size * .5)
-
-        N = len(trials)
-        trials_count.append(N)
-        if N < 3:
-            continue
-        nR = len(trials.loc[trials.escape_arm == 'right'])
-
-        a, b, _, _, _, _, _ = bayes.grouped_bayes_analytical(N, nR)
-        if a > 0  and b > 0:
-            beta = get_distribution('beta', a, b, n_samples=25000)
-
-            plot_kde(
-                    ax=ax, 
-                    data=beta, 
-                    vertical=True, 
-                    z=bin.left + window_size*.5, 
-                    normto=window_size * .75, 
-                    color=data.color)
-
-    # trials_count = np.array(trials_count)
-    # ax.plot(X, trials_count / trials_count.max() / 3)    
-    ax.axhline(data.pR, lw=3, color=data.color, zorder=-1, alpha=.4)
-    ax.set(ylim=[-.1, 1.1], ylabel=data.name)
-axes[-1].set(xlabel='time (s)')
-ax.figure.savefig(fig_1_path / 'panel_G_time_binned_bayes.eps', format='eps', dpi=dpi)
-# %%

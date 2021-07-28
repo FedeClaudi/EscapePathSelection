@@ -33,7 +33,8 @@ def triple_plot(
         fill=0.1, 
         pad=0.0,
         spread=0.01,
-        horizontal=False
+        horizontal=False,
+        show_kde=True,
     ):
     '''
         Given a 1d array of data it plots a scatter of the data (with x_pos as X coords)
@@ -78,21 +79,25 @@ def triple_plot(
         vert = not horizontal,
         )
 
+    if not boxes['boxes']:
+        raise ValueError('no boxes drawn')
+
     for box in boxes["boxes"]:
         box.set(facecolor = "k")
 
     # kde plot
-    kde_kwargs = kde_kwargs or dict(bw=.25)
-    plot_kde(
-        ax=ax, 
-        data=y, 
-        vertical=not horizontal, 
-        z=x_pos+kde_x, 
-        color=color, 
-        kde_kwargs=kde_kwargs, 
-        zorder=zorder,
-        normto=kde_normto,
-    )
+    if show_kde:
+        kde_kwargs = kde_kwargs or dict(bw=.25)
+        plot_kde(
+            ax=ax, 
+            data=y, 
+            vertical=not horizontal, 
+            z=x_pos+kde_x, 
+            color=color, 
+            kde_kwargs=kde_kwargs, 
+            zorder=zorder,
+            normto=kde_normto,
+        )
 
 def generate_figure(flatten=True, aspect_kwargs={}, **kwargs):
     figsize = kwargs.pop("figsize", (9, 9))
@@ -122,6 +127,7 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
         axes = generate_figure(ncols=2, figsize=(16, 8))
     trials = dataset.get_orientations_on_T(n_samples=n_samples, **kwargs)
 
+    # # plot tracking
     for i, trial in trials.iterrows():
         if trial.escape_arm == 'right':
             color=rcolor
@@ -138,17 +144,20 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
             zorder=100
         )
 
-
+    # plot angles
     L = trials.loc[trials.escape_arm == 'left']
     R = trials.loc[trials.escape_arm == 'right']
-    for data, color, lbl in zip((L, R), (lcolor, rcolor), ('left', 'right')):
-        angles = np.vstack(data.orientation.values).T
+    for data, color, lbl, ax in zip((L, R), (lcolor, rcolor), ('left', 'right'), axes[1:]):
+        try:
+            angles = np.vstack(data.orientation.values).T
+        except ValueError:
+            print(f'Could not get orientation for data: {data} ({lbl})')
 
         mu = np.degrees(circmean(np.radians(angles), axis=1, ))
-        sigma = np.degrees(circstd(np.radians(angles), axis=1, ))
-        plot_mean_and_error(mu, sigma, axes[1], color=color, label=lbl)
 
-    axes[0].axis('off')
-    axes[1].set(ylabel='Orientation', xlabel='time', xticks=[0, n_samples], xticklabels=[0, 1])
+        for n, ori in enumerate(mu):
+            # if n % 2 == 0:
+            ax.arrow(ori/180.*np.pi, 0.5, 0, 1, alpha = n / len(mu), width = 0.1,
+                        edgecolor = 'black', facecolor = color,zorder = 5)
 
     return axes, L, R

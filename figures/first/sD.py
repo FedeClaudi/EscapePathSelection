@@ -40,7 +40,6 @@ left_components = [k for k, (x,y) in maze_components_locations.items() if x < 48
 right_components = [k for k, (x,y) in maze_components_locations.items() if x > 520 ]
 
 # %%
-
 plot_kwargs = dict(
     shift=0.04, 
     zorder=100, 
@@ -225,3 +224,4 @@ axes[1].set(title='Numbe of stimuli')
 print(f'Exploration duration average: {np.mean(expl_durations):.2f} - sdev {np.std(expl_durations):.2f}')
 
 print(f'Number of tirals average: {np.mean(n_stimuli):.2f} - sdev {np.std(n_stimuli):.2f}')
+# %%

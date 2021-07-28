@@ -30,7 +30,7 @@ from figures.first import fig_1_path, M1, M2, M3, M4, M6
 # %%
 
 # get sessions
-sessions = Session().get_by(maze=4)
+sessions = pd.DataFrame(Session().get_by(maze=4))
 
 # get stimuli
 stimuli = Stimuli.get_by_sessions(sessions)
@@ -39,7 +39,9 @@ stimuli = stimuli.loc[(stimuli.uid > 88)&(stimuli.uid < 100)]
 # %%
 axes = generate_figure(ncols=2, figsize=(16, 9))
 
+ToT = {'left': [], 'right': [], 'center':[]}
 center, left, right = 0, 0, 0
+mice  = []
 for i, stim in track(stimuli.iterrows(), description='Organizing data', total=len(stimuli)):
     tracking = get_recording_body_tracking(stim.recording_uid)
     if tracking is not None:
@@ -47,13 +49,13 @@ for i, stim in track(stimuli.iterrows(), description='Organizing data', total=le
 
         # get data after the stim
         tracking = tracking[start:start + max_escape_frames, :]
-        # if np.all(np.isnan(tracking)):
-        #     continue
+        if np.all(np.isnan(tracking)):
+            continue
         
 
         # Get when the mouse leaves the threat platform
         try:
-            allout = np.where(tracking[:, 1] > 100)[0]
+            allout = np.where(tracking[:, 1] > 85)[0]
             if len(allout) == 0:
                 raise IndexError
         except IndexError:
@@ -64,10 +66,10 @@ for i, stim in track(stimuli.iterrows(), description='Organizing data', total=le
         except IndexError:
             out = allout[0]
 
-        if tracking[out, -1] <= 25:
+        if tracking[out, -1] <= 35:
             # speed below mean - 2*std: ignoring it
             continue
-        if out > 5 * 40:
+        if out > 4 * 40:
             # too long after stim onset
             continue
 
@@ -75,18 +77,24 @@ for i, stim in track(stimuli.iterrows(), description='Organizing data', total=le
         if x_out < 105:
             color = 'red'
             left += 1
+            ToT['left'].append(out/40)
         elif x_out > 115:
             right += 1
             color='blue'
+            ToT['right'].append(out/40)
         else:
             color = 'green'
             center += 1
+            ToT['center'].append(out/40)
+        mice.append(stim.mouse_id)
 
         axes[0].plot(tracking[:, 0], tracking[:, 1], color=color)
+        axes[0].scatter(tracking[out, 0], tracking[out, 1], color='k', s=50, zorder=10)
         axes[1].scatter(out/40, tracking[out, -1], color=color, s=150)
 
 tot = left + center + right
 
+print(f'N trials {tot} | n mice {len(set(mice))}')
 for arm, n in zip(('left', 'center', 'right'), (left, center, right)):
     print(f'p({arm}): {n/tot:.2f}')
 
@@ -105,4 +113,15 @@ ax.hist(tots, bins=20)
 mu = np.mean(speeds)
 sdev = np.std(speeds)
 
-print(f'Mean speed: {mu:.2f}, +- {sdev:.2f} - thershold: {mu - 2*sdev:.2f}')
+print(f'Mean speed: {mu:.2f}, +- {sdev:.2f} - thershold: {mu -sdev:.2f}')
+# %%
+print(f'Mean ToT: ', {arm: f'{np.mean(v):.2f} +/- {np.std(v):.2f}' for arm,v in ToT.items()})
+# %%
+from scipy.stats import chisquare
+
+observed = [left, center, right]
+expected = [0.33 * tot, 0.33 * tot, 0.33 * tot]
+chisquare(observed, expected)
+
+
+# %%

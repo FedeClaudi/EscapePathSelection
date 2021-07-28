@@ -10,17 +10,21 @@ module_path = Path(os.path.abspath(os.path.join("."))).parent.parent
 sys.path.append(str(module_path))
 sys.path.append('./')
 
+from fcutils.plot.distributions import plot_distribution
 from fcutils.path import from_yaml
 
 from paper import Trials, paths
 from paper.helpers.mazes_stats import get_mazes
 
+from figures.settings import dpi
+from figures.second import fig_2_path
 from figures.dataset import DataSet
 from figures.colors import M1_color, tracking_color, start_color, end_color
-from figures._plot_utils import generate_figure, plot_trial_tracking
+from figures._plot_utils import generate_figure, plot_trial_tracking, triple_plot
 from figures.settings import max_escape_duration
 from figures.statistical_tests import fisher
 from figures._data_utils import get_number_per_arm_fro_trials_df, get_pR_from_trials_df
+from figures.bayes import Bayes
 
 
 # %%
@@ -75,6 +79,19 @@ print(f'''
     ''')
 fisher(table, ' p(R) in baseline vs flipped')
 
+# %%
+# get average second exploration duration
+exploration_durations = []
+for sess in baseline.uid.unique():
+    # last baseline trials
+    try:
+        bs = baseline.loc[baseline.uid == sess].iloc[-1].stim_frame_session / 40 / 60
+        flp = flipped.loc[flipped.uid == sess].iloc[0].stim_frame_session / 40 / 60
+    except IndexError:
+        continue
+    exploration_durations.append(flp - bs)
+
+print(f'Second exploration duration: {np.median(exploration_durations):.2f} +/- {np.std(exploration_durations):.2f}')
 
 # %%
 # plot tracking
@@ -86,4 +103,89 @@ for ax, trs in zip(axes, (baseline, flipped)):
     ax.axis('off')
 axes[0].set(title='baseline')
 axes[1].set(title='flipped')
+
+axes[1].figure.savefig(fig_2_path / 'flip_flop_trackibg.eps', format='eps', dpi=dpi)
+
 # %%
+# plot posteriors with box plot
+ax = generate_figure()
+bayes = Bayes()
+for n, (trials, color, name) in enumerate(zip((baseline, flipped), 'kr', ('baseline', 'flipped'))):
+    n_trials = len(trials)
+    nR = len(trials.loc[trials.escape_arm == 'right'])
+
+    mice_pr = []
+    for mouse in trials.mouse_id.unique():
+        trs = trials.loc[trials.mouse_id == mouse]
+        mice_pr.append(len(trs.loc[trs.escape_arm == 'right'])/len(trs))
+
+    a, b, _, _, _, _, _ = bayes.grouped_bayes_analytical(n_trials, nR)
+    plot_distribution(a, b, dist_type='beta', ax=ax, plot_kwargs=dict(color=color, label=name), shaded=True)
+
+    triple_plot(
+        -n*2 - 2, 
+        mice_pr,
+        ax, 
+        kde_kwargs=dict(bw=0.05),
+        kde_normto=.4,
+        box_width=.2,
+        color=color,
+        fill=.001,
+        horizontal=True,
+        show_kde=False,
+        scatter_kws=dict(s=30),
+        spread=0.3)
+
+ax.axhline(0, lw=2, color='k')
+ax.plot([0.5, 0.5], [0, 9], ls='--', lw=2, color=[.4, .4, .4], zorder=-1)
+ax.legend()
+ax.set(ylabel='density', xlabel='p(R)', xlim=[-0.02, 1.02])
+ax.figure.savefig(fig_2_path / 'flip_flop_posteriors.eps', format='eps', dpi=dpi)
+
+# %%
+# Get out of threat time and on threat platform dynamics
+from figures._plot_utils import plot_threat_tracking_and_angle
+from figures.dataset import DataSet
+print(f'Time out of T: baseline {baseline.time_out_of_t.mean():.2f} +- {baseline.time_out_of_t.std():.2f}, flipped {flipped.time_out_of_t.mean():.2f} +- {flipped.time_out_of_t.std():.2f}')
+
+f = plt.figure(figsize=(16, 9))
+
+ax = f.add_subplot(231)
+ax1 = f.add_subplot(232, projection='polar')
+ax4 = f.add_subplot(233, projection='polar')
+
+ax2 = f.add_subplot(234)
+ax3 = f.add_subplot(235, projection='polar')
+ax5 = f.add_subplot(236, projection='polar')
+
+plot_threat_tracking_and_angle(
+    DataSet('baseline', baseline),
+    axes=[ax, ax1, ax4]
+)
+plot_threat_tracking_and_angle(
+    DataSet('flipped', flipped),
+    axes=[ax2, ax3, ax5]
+)
+
+
+ax.set(title='BASELINE')
+ax3.set_theta_zero_location("N")
+ax3.set_theta_direction(-1)
+ax2.set(title='FLIPPED')
+ax1.set_theta_zero_location("N")
+ax1.set_theta_direction(-1)
+ax4.set_theta_zero_location("N")
+ax4.set_theta_direction(-1)
+ax5.set_theta_zero_location("N")
+ax5.set_theta_direction(-1)
+ax.axis('off')
+ax2.axis('off')
+ax1.set(title='left trials')
+ax4.set(title='roght trials')
+ax.figure.savefig(fig_2_path / 'flip_flop_onT_dynamics.eps', format='eps', dpi=dpi)
+
+# %%
+
+
+
+
