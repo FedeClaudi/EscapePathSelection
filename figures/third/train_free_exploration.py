@@ -36,8 +36,8 @@ TRAINING_SETTINGS['max_n_steps'] = 500
 
 agents =  {
     # 'QTable':QTableModel,
-    # 'DynaQ_20':DynaQModel,
-    'InfluenceZonesNoSheltVec':InfluenceZones,
+    'DynaQ_20':DynaQModel,
+    # 'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 agent_kwargs = {
@@ -51,7 +51,7 @@ agent_kwargs = {
 # ---------------------------------------------------------------------------- #
 def run():
     for maze_name, maze in zip(('M1', 'M6'), (PsychometricM1, PsychometricM6)):
-        if maze_name == 'M1':
+        if maze_name == 'M6':
             continue
 
         logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
@@ -77,6 +77,8 @@ def run():
                 'play_status_sem':[],
                 'play_steps':[],
                 'play_steps_sem':[],
+                'play_arm':[],
+                'play_arm_sem':[],
             }
             for epn in range(TRAINING_SETTINGS['episodes']):
                 keys = [
@@ -85,12 +87,18 @@ def run():
                     ('success', 'successes_history'),
                     ('play_status', 'play_status_history'),
                     ('play_steps', 'play_steps_history'),
+                    ('play_arm', 'play_arm_history'),
                 ]
                 for k, v in keys:
-                    training_results[k].append(np.mean([th.data[v][epn] for th in training_history]))
-                    training_results[k+'_sem'].append(sem([th.data[v][epn] for th in training_history]))
+                    try:
+                        training_results[k].append(np.nanmean([th.data[v][epn] for th in training_history]))
+                        training_results[k+'_sem'].append(sem([th.data[v][epn] for th in training_history], nan_policy='omit'))
+                    except TypeError as e:
+                        raise ValueError(f'{[th.data[v] for th in training_history]}')
+                        raise TypeError(f'Failed for key {k}:\n{e}')
 
             pd.DataFrame(training_results).to_hdf(f'./cache/{name}_training_on_{maze_name}.h5', key='hdf')
+            logger.info(f'SAVED ./cache/{name}_training_on_{maze_name}.h5')
 
             escape_results = {  # one for each rep of the model
                 'rewards': [r[1] for r in run_results],
@@ -99,6 +107,7 @@ def run():
                 'status': [r[4] for r in run_results],
             }
             pd.DataFrame(escape_results).to_hdf(f'./cache/{name}_escape_on_{maze_name}.h5', key='hdf')
+            logger.info(f'SAVED: /cache/{name}_escape_on_{maze_name}.h5')
 
 
 # ------------------------------- run instance ------------------------------- #
@@ -132,8 +141,6 @@ def run_instance(args):
     # train
     agent.train(random_start=RANDOM_INIT_POS, episodes=TRAINING_SETTINGS['episodes'], test_performance=True)
 
-    # raise ValueError(agent.training_history.episode_length_history)
-
     # do a play run
     try:
         status, play_steps, play_reward, escape_arm, states = _maze.play(agent, start_cell=_maze.START)
@@ -145,6 +152,8 @@ def run_instance(args):
         status = np.nan
 
     print(f'\n[{green}]Finished[/{green}]: Model: [b {pink}]{name}[/b {pink}] - Iteration [{blue_light}]{rep+1}/{N_REPS_MODEL}[/{blue_light}] - play status: {status}')
+
+    agent.training_history.data['play_arm_history'] = [np.nan if x is None else (1 if x == 'right' else 0) for x in agent.training_history.play_arm_history]
     return (
         agent.training_history,
         play_reward,

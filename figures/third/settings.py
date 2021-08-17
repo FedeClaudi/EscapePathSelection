@@ -11,7 +11,7 @@ TRACKING_TAKE_ALL_ACTIONS = False  # if true when training on tracking data the 
 #     max_n_steps = 500,
 # )
 TRAINING_SETTINGS = dict(
-    discount=.8, 
+    discount=.6, 
     exploration_rate=.4, 
     learning_rate=.8,
     episodes=100,

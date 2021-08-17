@@ -6,6 +6,7 @@ if 'darwin' not in sys.platform:
 else:
     fig_3_path = Path('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Figure3')
 
+from rl import environment
 from rl.environment.environment import Status
 from rl.environment.mazes import PsychometricM1, PsychometricM6
 from rl.models import QTableModel, DynaQModel, InfluenceZones, QTableTracking, DynaQTracking, InfluenceZonesTracking

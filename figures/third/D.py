@@ -53,3 +53,17 @@ ax.set(yticks=[0.025, .525], yticklabels=['fail', 'success'], xlabel='session #'
 clean_axes(f)
 f.savefig(fig_3_path / 'panel_D_guided_expl_successes.eps', format='eps', dpi=dpi)
 # %%
+
+
+'''
+    Get p(R)
+'''
+from scipy.stats import sem
+for i, row in data.loc[data.maze=='M1'].iterrows():
+    arms = [arm if np.mean(success > 0.8) else np.nan for success, arm in zip(row.results, row.escape_arms) ]
+
+    mn = np.nanmean(arms)
+    sm = sem(arms, nan_policy='omit')
+    print(f'model: {row.model} p(R): {mn:.2f} +- {sm:2f}')
+
+# %%
