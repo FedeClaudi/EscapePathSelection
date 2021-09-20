@@ -33,3 +33,7 @@ for n, trial in M4.trials.iterrows():
 ax.axis('off')
 ax.figure.savefig(fig_1_path / 'panel_A_no_central.eps', format='eps', dpi=dpi)
 # %%
+# get the ToT
+_trials = M4.trials.loc[(M4.trials.uid < 88)|(M4.trials.uid > 100)]
+print(_trials.time_out_of_t.mean(), _trials.time_out_of_t.std())
+# %%

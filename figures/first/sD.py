@@ -118,6 +118,8 @@ plot_kwargs = dict(
 )
 
 X = []
+_data = dict(session=[], pR=[], side=[])
+_skipped = []
 for n, data in enumerate(datasets):
     n = n / 20
     X.append(n)
@@ -134,9 +136,15 @@ for n, data in enumerate(datasets):
             sess_trials = trials.loc[trials.session_name ==  sess]
             if sess_trials.empty:
                 print(f'Skipping {sess} - {side.upper()}')
+                _skipped.append(sess)
                 continue
             nR = len(sess_trials.loc[sess_trials.escape_arm == 'right'])
             pR.append(nR / len(sess_trials))
+            
+            # append to data for stats tests
+            _data['session'].append(sess)
+            _data['pR'].append(pR[-1])
+            _data['side'].append(side)
 
         shift = .005 if side == 'right' else-.005
         triple_plot(
@@ -169,6 +177,20 @@ for n, data in enumerate(datasets):
 _ = ax.set(ylim=[-0.02, 1.02], xticks=X, 
             xticklabels=[m.name for m in datasets], ylabel='p(R)')
 ax.figure.savefig(fig_1_path / 'panel_S_D_ArmOfOrigin.eps', format='eps', dpi=dpi)
+
+# %%
+# do a repeated measures anova to check for effect of arm
+_data = pd.DataFrame(_data)
+
+for sess in set(_skipped):
+    _data = _data.loc[_data.session != sess]
+
+from statsmodels.stats.anova import AnovaRM
+
+#perform the repeated measures ANOVA
+print(AnovaRM(data=_data, depvar='pR', subject='session', within=['side']).fit())
+
+
 
 # %%
 # # fit GLM on all data

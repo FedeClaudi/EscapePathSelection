@@ -92,11 +92,18 @@ for i, stim in track(stimuli.iterrows(), description='Organizing data', total=le
         axes[0].scatter(tracking[out, 0], tracking[out, 1], color='k', s=50, zorder=10)
         axes[1].scatter(out/40, tracking[out, -1], color=color, s=150)
 
+# %%
 tot = left + center + right
 
 print(f'N trials {tot} | n mice {len(set(mice))}')
-for arm, n in zip(('left', 'center', 'right'), (left, center, right)):
+for arm, n in zip(('side', 'center'), (left+right, center)):
     print(f'p({arm}): {n/tot:.2f}')
+
+
+from scipy.stats import binom_test
+
+res = binom_test(center, tot, p=0.33, alternative='less')
+print(res)
 
 
 # %%

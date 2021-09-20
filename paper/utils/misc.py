@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.signal import resample
 from scipy.stats import ttest_ind as ttest
 from statsmodels.stats.multitest import multipletests
-from brainrender.colors import colorMap
+# from brainrender.colors import colorMap
 import itertools
 
 
@@ -106,12 +106,12 @@ def run_multi_t_test_bonferroni(meandurs):
     ts, ps = [], []
 
     for maze in meandurs.keys():
-        res = ttest(meandurs[maze]['l'], meandurs[maze]['r'], equal_var =False)
+        res = ttest(meandurs[maze]['l'], meandurs[maze]['r'], equal_var =True)
         ts.append(res.statistic)
         ps.append(res.pvalue)
 
     significant, pval, _, _ = multipletests(ps, method='bonferroni', alpha=0.05)
-    return significant, pval
+    return significant, pval, list(meandurs.keys())
 
 def run_multi_t_test_bonferroni_one_samp_per_item(meandurs):
     """

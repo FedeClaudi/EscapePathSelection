@@ -197,3 +197,66 @@ _ = ax.set(
 )
 
 # %%
+'''
+    Check on which mazes each mouse was used
+'''
+import pandas as pd
+
+mice = []
+for ds in datasets: 
+    mice += ds.mice
+mice = list(set(mice))
+
+excluded_mice = []
+mice_usage = dict(mouse=[], M1=[], M2=[], M3=[], M4=[])
+for mouse in mice:
+    mice_usage['mouse'].append(mouse)
+    for ds in datasets:
+        if ds.name == 'M6': continue
+        if mouse in ds.mice:
+            mice_usage[ds.name].append(1)
+
+        else:
+            mice_usage[ds.name].append(0)
+
+        # check that each mouse is used only once
+        if len(ds.trials.loc[ds.trials.mouse_id==mouse].uid.unique()) > 1:
+            print(' > 1 session for a mouse')
+            excluded_mice.append(mouse)
+
+usage = pd.DataFrame(mice_usage)
+
+usage['tot'] = usage['M1'] + usage['M2'] + usage['M3'] + usage['M4']
+
+usage.sort_values('tot', inplace=True, ascending=False)
+print(usage.head(20))
+
+clean_mice = usage.loc[(usage.tot==1)&(~usage.mouse.isin(excluded_mice))].mouse.values
+print(f'{len(clean_mice)} clean mice vs {len(usage.mouse.unique())} mice')
+
+# %%
+'''
+    Do a repeated measures anova on the data
+'''
+
+data = dict(
+    mouse=[], pR=[], geodesic_ratio=[], ds=[],
+)
+
+for ds in datasets:
+    if ds.name == 'M6': continue
+    data['mouse'].extend(ds.mice)
+    data['pR'].extend(ds.mice_pR())
+    data['geodesic_ratio'].extend([ds.maze['ratio']] * ds.n_mice)
+    data['ds'].extend([ds.name] * ds.n_mice)
+
+data = pd.DataFrame(data)
+data = data.loc[data.mouse.isin(clean_mice)]
+
+# from statsmodels.stats.anova import AnovaRM
+# print(AnovaRM(data, 'geodesic_ratio', subject='mouse', within=['pR'], aggregate_func='mean').fit())
+
+from scipy.stats import f_oneway
+
+f_oneway(*[data.loc[data.ds == ds].pR for ds in ('M1', 'M2', 'M3', 'M4')])
+# %%

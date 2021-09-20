@@ -106,7 +106,7 @@ for n, (name, model) in enumerate(agents.items()):
 
         # create an instance
         _maze = maze(rewards)
-        raise ValueError
+
         _maze.build_graph()
         _maze.shelter_found = False
         agent = model(_maze, name=_maze.name, **settings, **agent_kwargs[name])

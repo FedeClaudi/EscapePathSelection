@@ -102,6 +102,7 @@ for n, dataset in enumerate((M1, M2, M3, M4)):
     axes[3].axvline(dataset.pR, lw=2, color=[.2, .2, .2], ls='--')
     axes[3].set(ylabel='Y position', yticks=[],  xlim=[0,1], xlabel='accuracy', xticks=[0, 0.5, 1])
 
+
 clean_axes(f)
 f.tight_layout()
 f.savefig(fig_1_path / 'panel_sE_angles_on_T.eps', format='eps', dpi=dpi)

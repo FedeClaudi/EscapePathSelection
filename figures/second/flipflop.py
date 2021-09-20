@@ -150,42 +150,31 @@ print(f'Time out of T: baseline {baseline.time_out_of_t.mean():.2f} +- {baseline
 
 f = plt.figure(figsize=(16, 9))
 
-ax = f.add_subplot(231)
-ax1 = f.add_subplot(232, projection='polar')
-ax4 = f.add_subplot(233, projection='polar')
+#  %%
+from scipy.stats import ttest_ind as ttest
 
-ax2 = f.add_subplot(234)
-ax3 = f.add_subplot(235, projection='polar')
-ax5 = f.add_subplot(236, projection='polar')
+'''
+Run a ttest to check for independence of ToT duration 
+'''
 
-plot_threat_tracking_and_angle(
-    DataSet('baseline', baseline),
-    axes=[ax, ax1, ax4]
-)
-plot_threat_tracking_and_angle(
-    DataSet('flipped', flipped),
-    axes=[ax2, ax3, ax5]
-)
+ttest(baseline.time_out_of_t, flipped.time_out_of_t, equal_var=False)
 
 
-ax.set(title='BASELINE')
-ax3.set_theta_zero_location("N")
-ax3.set_theta_direction(-1)
-ax2.set(title='FLIPPED')
-ax1.set_theta_zero_location("N")
-ax1.set_theta_direction(-1)
-ax4.set_theta_zero_location("N")
-ax4.set_theta_direction(-1)
-ax5.set_theta_zero_location("N")
-ax5.set_theta_direction(-1)
-ax.axis('off')
-ax2.axis('off')
-ax1.set(title='left trials')
-ax4.set(title='roght trials')
-ax.figure.savefig(fig_2_path / 'flip_flop_onT_dynamics.eps', format='eps', dpi=dpi)
 
 # %%
+print(*list(baseline.time_out_of_t), sep='\n')
+# %%
+print(*list(flipped.time_out_of_t), sep='\n')
+
+# %%
+bl = baseline.groupby('session_name').mean().time_out_of_t
+fp = flipped.groupby('session_name').mean().time_out_of_t
 
 
+data = {k: (bl[k], fp[k]) for k in bl.index if k in fp.index}
+ttest([d[0] for d in data.values()], [d[1] for d in data.values()], equal_var=True)
 
-
+# %%
+plt.scatter(np.zeros(len(data)), [d[0] for d in data.values()], s=100, zorder=100)
+plt.scatter(np.ones(len(data)), [d[1] for d in data.values()], s=100, zorder=100)
+plt.plot(np.array(list(data.values())).T, color='k', zorder=1)

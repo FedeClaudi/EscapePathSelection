@@ -40,13 +40,16 @@ def get_trips(rois, source, target, tracking):
         try:
             at_source = np.where(rois[:tgt] == source)[0][-1]
         except  IndexError:
+            # print('s1')
             continue
 
         # if the mouse gets to tgt any other time during the trip, ignore
-        if np.any(rois[at_source:tgt] == target):
+        if np.any(rois[at_source:tgt-3] == target):
+            # print('s2')
             continue
 
         if tgt - at_source < 50: 
+            # print('s3')
             # too fast
             continue
 
@@ -58,6 +61,7 @@ def get_trips(rois, source, target, tracking):
 
         # check if there was an error
         if tracking[tgt, 0] < 200 or tracking[tgt, 0] > 800:
+            # print('s4')
             continue
 
         # get distance travelled
@@ -66,6 +70,7 @@ def get_trips(rois, source, target, tracking):
         # dist = get_dist(x, y)
         dist = np.sum(tracking[at_source:tgt, 2]) * 0.22
         if dist < 25:
+            # print('s5')
             continue  # too short
 
         trips.append((at_source, tgt, arm, dist))
@@ -85,6 +90,8 @@ def plot_trips(tracking, rois, trips, ax=None):
         else:
             color = [.7, .7, .7]
         ax.plot(trk[::5, 0], trk[::5, 1], color=color, alpha=.25, zorder=-1)
+
+
 
 
 # %%

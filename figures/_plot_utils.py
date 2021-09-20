@@ -1,12 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import circmean, circstd
+from scipy.stats import circmean
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.cm import ScalarMappable
 
-from myterial import salmon
+from myterial import salmon, grey_light
 
 from fcutils.plot.distributions import plot_kde
 from fcutils.plot.figure import clean_axes, set_figure_subplots_aspect
-from fcutils.plot.elements import plot_mean_and_error
+from myterial.utils import make_palette
 
 from figures.settings import max_escape_frames, max_escape_duration, fps, trace_downsample
 from figures.colors import tracking_color, tracking_color_dark, start_color, end_color
@@ -127,7 +130,7 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
         axes = generate_figure(ncols=2, figsize=(16, 8))
     trials = dataset.get_orientations_on_T(n_samples=n_samples, **kwargs)
 
-    # # plot tracking
+    # lot tracking
     for i, trial in trials.iterrows():
         if trial.escape_arm == 'right':
             color=rcolor
@@ -154,10 +157,22 @@ def plot_threat_tracking_and_angle(dataset, lcolor=tracking_color, rcolor=tracki
             print(f'Could not get orientation for data: {data} ({lbl})')
 
         mu = np.degrees(circmean(np.radians(angles), axis=1, ))
+        colors = make_palette(grey_light, color, len(mu))
+
+
 
         for n, ori in enumerate(mu):
             # if n % 2 == 0:
-            ax.arrow(ori/180.*np.pi, 0.5, 0, 1, alpha = n / len(mu), width = 0.1,
-                        edgecolor = 'black', facecolor = color,zorder = 5)
+            ax.arrow(ori/180.*np.pi, 0.5, 0, 1, width = 0.1,
+                        edgecolor = 'black', facecolor = colors[n], zorder = 5)
+
+    # make colorbar
+    divider = make_axes_locatable(axes[3])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+
+    # create colorbar
+    cmap = LinearSegmentedColormap.from_list("", colors)
+    axes[0].figure.colorbar(ScalarMappable(cmap=cmap), ax=cax)
+
 
     return axes, L, R

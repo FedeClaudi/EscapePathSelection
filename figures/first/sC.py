@@ -65,6 +65,7 @@ ax = generate_figure()
 
 datasets = (M1, M2, M3, M4, M6)
 shift = .3
+_data = {}
 for n, dataset in enumerate(datasets):
     n = n*3
     L_dur = dataset.L.escape_duration.values
@@ -99,9 +100,16 @@ for n, dataset in enumerate(datasets):
                 spread=0.05,
                 )
 
-    
+    _data[dataset.name] = {'l':L_dur, 'r':R_dur}
 _ = ax.set(xticks=np.arange(5)*3+shift, xticklabels=[ds.name for ds in datasets], ylabel='duration \n (s)', xlabel='maze')
 ax.figure.savefig(fig_1_path / 'panel_S_C_duration_per_arm.eps', format='eps', dpi=dpi)
 
+
+# %%
+'''
+    Do t test to see if significant
+'''
+from paper.utils.misc import run_multi_t_test_bonferroni
+run_multi_t_test_bonferroni(_data)
 
 # %%
