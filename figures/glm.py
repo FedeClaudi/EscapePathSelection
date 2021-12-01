@@ -48,9 +48,9 @@ class GLM:
             data.trials['maze'] = data.maze['maze_name'].upper()
 
             fps = [30 if t.uid < 184 else 40 for i,t in data.trials.iterrows()]
-            data.trials['time_in_session'] = [t.stim_frame_session / fps[n] for n, (_, t) in enumerate(data.trials.iterrows())]
-
-        # glm_data = pd.DataFrame(glm_data)
+            time_in_sess = np.array([t.stim_frame_session / fps[n] for n, (_, t) in enumerate(data.trials.iterrows())])
+            data.trials['time_in_session'] = time_in_sess
+        
         glm_data = pd.concat([d.trials for d in datasets]).reset_index()
         glm_data = glm_data[['maze', 'angle_ratio', 'geodesic_ratio', 'outcomes', 'origin', 'time_in_session']]
 
@@ -61,27 +61,30 @@ class GLM:
         '''
             Returns a dataframe of 1 column with pR for each maze
         '''
-        X = X.drop('index', axis=1)
-        pr = np.zeros(len(X))
-        for maze in X.maze.unique():
-            maze_trials = X.loc[X.maze == maze]
-            pr[maze_trials.index] = maze_trials.outcomes.mean()
+    
+        X = X.drop(['angle_ratio', 'geodesic_ratio', 'origin', 'time_in_session' ,'maze', 'const'], axis=1)
+        # pr = np.zeros(len(X))
+        # for maze in X.maze.unique():
+        #     maze_trials = X.loc[X.maze == maze]
+        #     pr[maze_trials.index] = maze_trials.outcomes.mean()
 
-        return pd.DataFrame(dict(pR=pr))
+        # return pd.DataFrame(dict(pR=pr))
+        return X
 
     def prepare_data(self):
         '''
             Splits the data into a random train and test sets and comptues p(R) for each
         '''
-        n_samples = int(len(self.X) * .66)
-        xtrain = self.X.sample(n_samples).reset_index()
-        xtest = self.X[~self.X.isin(xtrain)].dropna().reset_index()
+        # n_samples = int(len(self.X) * .66)
+        # xtrain = self.X.sample(n_samples).reset_index()
+        # xtest = self.X[~self.X.isin(xtrain)].dropna().reset_index()
+        xtrain, xtest = train_test_split(self.X, test_size=.25)
 
         ytrain = self.get_Y_from_X(xtrain)
         ytest = self.get_Y_from_X(xtest)
 
-        xtrain = xtrain.drop(['index', 'maze', 'outcomes'], axis=1)
-        xtest = xtest.drop(['index', 'maze', 'outcomes'], axis=1)
+        xtrain = xtrain.drop(['maze', 'outcomes'], axis=1)
+        xtest = xtest.drop(['maze', 'outcomes'], axis=1)
         
         return xtrain, xtest, ytrain, ytest
 
@@ -98,8 +101,12 @@ class GLM:
 
         # predict on test
         y_hat = fitted_model.predict(xtest)
+        
+        # go from probabilities to binary outcomes
+        y_hat[y_hat < 0.5] = 0
+        y_hat[y_hat >= 0.5] = 1
 
-        return Results(
+        return fitted_model, Results(
             fitted_model,
             xtrain,
             xtest,
@@ -113,14 +120,16 @@ class GLM:
             repeatedly fits the model on random subsets of the data
             and returns the R2 of the predictions and a dataframe of the model coefficients
         '''
-        R2, params = [], []
+        fitted_models, fitted_results, R2, params = [], [], [], []
         for _ in track(range(repetitions)):
-            res = self.fit()
+            fitted, res = self.fit()
+            fitted_models.append(fitted)
+            fitted_results.append(res)
 
             Ypred = list(res.predictions.values)
-            Y = list(res.ytest.pR)
+            Y = list(res.ytest.outcomes)
 
             R2.append(r2_score(Y, Ypred))
             params.append(res.model.params)
-        return R2, pd.DataFrame(params)
+        return R2, pd.DataFrame(params), fitted_models, fitted_results
         

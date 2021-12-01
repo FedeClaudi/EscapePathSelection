@@ -54,6 +54,7 @@ plot_kwargs = dict(
 )
 
 ax = generate_figure()
+_data = dict()
 # -------------------------------- exploration ------------------------------- #
 for n, data in enumerate(datasets):
 
@@ -75,6 +76,9 @@ for n, data in enumerate(datasets):
 
         L.append(l/(l+r))
         R.append(r/(l+r))
+
+    if data.name != 'M6':
+        _data[data.name] = dict(l=L, r=R)
 
     # plot
     triple_plot(
@@ -100,6 +104,14 @@ _ = ax.set(ylim=[0, 1], xticks=np.arange(len(datasets)), xticklabels=[m.name for
 ax.figure.savefig(fig_1_path / 'panel_S_D_explorations.eps', format='eps', dpi=dpi)
 
 # %%
+'''
+    Do t test to see if significant
+'''
+from paper.utils.misc import run_multi_t_test_bonferroni
+run_multi_t_test_bonferroni(_data)
+
+
+# %%
 # ------------------------------- arm of orign ------------------------------- #
 bayes = Bayes()
 ax = generate_figure(figsize=(16,9))
@@ -118,7 +130,7 @@ plot_kwargs = dict(
 )
 
 X = []
-_data = dict(session=[], pR=[], side=[])
+_data = {dataset.name:dict(l=[], r=[]) for dataset in datasets if dataset.name != 'M6'}
 _skipped = []
 for n, data in enumerate(datasets):
     n = n / 20
@@ -142,9 +154,8 @@ for n, data in enumerate(datasets):
             pR.append(nR / len(sess_trials))
             
             # append to data for stats tests
-            _data['session'].append(sess)
-            _data['pR'].append(pR[-1])
-            _data['side'].append(side)
+            if data.name != 'M6':
+                _data[data.name][side[0]].append((sess, pR[-1]))
 
         shift = .005 if side == 'right' else-.005
         triple_plot(
@@ -179,16 +190,20 @@ _ = ax.set(ylim=[-0.02, 1.02], xticks=X,
 ax.figure.savefig(fig_1_path / 'panel_S_D_ArmOfOrigin.eps', format='eps', dpi=dpi)
 
 # %%
-# do a repeated measures anova to check for effect of arm
-_data = pd.DataFrame(_data)
+# remove skipped sessions from data
+clean_data=dict()
+for arena, LR in _data.items():
+    clean_data[arena] = dict(
+        l=[pr for sess,pr in LR['l'] if sess not in _skipped],
+        r=[pr for sess,pr in LR['r'] if sess not in _skipped],
+    )
 
-for sess in set(_skipped):
-    _data = _data.loc[_data.session != sess]
+for arena, LR in clean_data.items():
+    print({k:len(v) for k,v in LR.items()})
 
-from statsmodels.stats.anova import AnovaRM
-
-#perform the repeated measures ANOVA
-print(AnovaRM(data=_data, depvar='pR', subject='session', within=['side']).fit())
+# do t-test for
+from paper.utils.misc import run_multi_t_test_bonferroni
+run_multi_t_test_bonferroni(clean_data)
 
 
 
@@ -243,7 +258,7 @@ axes[0].set(title='Exploration duration')
 axes[1].set(title='Numbe of stimuli')
 
 
-print(f'Exploration duration average: {np.mean(expl_durations):.2f} - sdev {np.std(expl_durations):.2f}')
+print(f'Exploration duration average: {np.median(expl_durations):.2f} - sdev {np.std(expl_durations):.2f}')
 
 print(f'Number of tirals average: {np.mean(n_stimuli):.2f} - sdev {np.std(n_stimuli):.2f}')
 # %%

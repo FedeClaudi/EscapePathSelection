@@ -111,13 +111,13 @@ axes[0].figure.savefig(fig_1_path / 'panel_S_B_tracking.eps', format='eps', dpi=
 ax = generate_figure()
 
 plot_mean_and_error(
-        np.nanmean(random_data[:, :, 2] * fps, 0),
-        sem(random_data[:, :, 2] * fps, 0, nan_policy='omit'),
+        np.nanmean(random_data[:, :, 2] * fps / 10, 0),
+        sem(random_data[:, :, 2] * fps / 10, 0, nan_policy='omit'),
         ax, color=grey_dark, label='random evoked')
 
 plot_mean_and_error(
-        np.nanmean(stimuli_data[:, :, 2] * fps, 0),
-        sem(stimuli_data[:, :, 2] * fps, 0, nan_policy='omit'),
+        np.nanmean(stimuli_data[:, :, 2] * fps / 10, 0),
+        sem(stimuli_data[:, :, 2] * fps / 10, 0, nan_policy='omit'),
         ax, color=salmon, label='stim evoked')
 
 ax.legend()

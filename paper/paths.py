@@ -50,5 +50,5 @@ else:
 
     plots_dir = "D:\\Dropbox (UCL - SWC)\\Rotation_vte\\Writings\\BehavPaper\\plots"
     cache_dir = "D:\\Dropbox (UCL - SWC)\\Rotation_vte\\Writings\\BehavPaper\\cache"
-    flip_flop_metadata_dir = "D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\flipflop"
+    flip_flop_metadata_dir = "D:\\Dropbox (UCL - SWC)\\Rotation_vte\\escape\\analysis_metadata\\flipflop"
     shortcut_notes = "D:\\Dropbox (UCL - SWC)\\Rotation_vte\\analysis_metadata\\shortctu\\notes.yml"

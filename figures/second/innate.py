@@ -18,7 +18,7 @@ from figures.first import M1, M2, M3, M4, M6
 from figures._plot_utils import generate_figure
 from figures._data_utils import get_pR_from_trials_df
 from figures.colors import tracking_color
-
+from figures.second import fig_2_path
 # %%
 
 # ----------------------------- p(R) naive vs nor ---------------------------- #
@@ -45,15 +45,15 @@ for ax, ax2, dataset in zip(axes, axes2, (M1, M2, M3, M4, M6)):
     # get a distribution of p(R) for randomly selected non naive trials
     if not N: continue
     random_samples = []
-    for i in np.arange(10):
+    for i in np.arange(100):
         selected = not_naive_trials.sample(N)
         random_samples.append(get_pR_from_trials_df(selected))
 
-    ax.hist(random_samples, color=blue_grey, label='not-naive trials', density=True, bins=6)
+    ax.hist(random_samples, color=blue_grey, label='not-naive trials', density=False, bins=6)  # np.linspace(0, 1, 10))
     prange = percentile_range(random_samples)
     ball_and_errorbar(
         prange.mean, 
-        -.5, 
+        -2.5, 
         ax,
         prange=prange,
         color = blue_grey,
@@ -62,18 +62,14 @@ for ax, ax2, dataset in zip(axes, axes2, (M1, M2, M3, M4, M6)):
     )
 
     p = get_pR_from_trials_df(naive_trials)
-    ax.plot(
-        [p, p],
-        [0, 6],
+    ax.axvline(p,
         lw=10,
         color = dataset.color,
         label = 'naive trials',
     )
 
     # ax.legend()
-    ax.set(xlabel='p(R)', title=dataset.name)
-    # break
-
+    ax.set(xlabel='p(R)', title=dataset.name, xlim=[0, 1], xticks=[0, 0.5, 1])
 
     # plot tracking data
     for i, trial in dataset.iterrows():
@@ -88,9 +84,12 @@ for ax, ax2, dataset in zip(axes, axes2, (M1, M2, M3, M4, M6)):
         ax2.set(title=dataset.name)
 
 axes[0].figure.suptitle('naive vs not naive p(R)')
-axes[0].set(ylabel='density')
+axes[0].set(ylabel='count')
 axes[1].axis('off')
 
 axes2[-1].axis('off')
 axes2[-1].axis('off')
+
+
+axes[0].figure.savefig(fig_2_path / 'panel_2_A_original_bins.eps', format='eps')
 # %%

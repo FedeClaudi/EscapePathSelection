@@ -215,7 +215,6 @@ for mouse in mice:
         if ds.name == 'M6': continue
         if mouse in ds.mice:
             mice_usage[ds.name].append(1)
-
         else:
             mice_usage[ds.name].append(0)
 
@@ -231,7 +230,9 @@ usage['tot'] = usage['M1'] + usage['M2'] + usage['M3'] + usage['M4']
 usage.sort_values('tot', inplace=True, ascending=False)
 print(usage.head(20))
 
-clean_mice = usage.loc[(usage.tot==1)&(~usage.mouse.isin(excluded_mice))].mouse.values
+# clean_mice = usage.loc[(usage.tot==1)&(~usage.mouse.isin(excluded_mice))].mouse.values
+clean_mice = usage.loc[usage.tot==1].mouse.values
+
 print(f'{len(clean_mice)} clean mice vs {len(usage.mouse.unique())} mice')
 
 # %%

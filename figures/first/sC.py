@@ -44,7 +44,7 @@ for dataset in (M1, M2, M3, M4):
 
 # fit linear regression and plot
 ax.scatter(X, Y, s=50, c=C)
-_, intercept, slope, _ = linear_regression(X, Y, robust=False)
+_, intercept, slope, results = linear_regression(X, Y, robust=False)
 
 x0, x1 = 80, 250
 ax.plot(
@@ -71,7 +71,6 @@ for n, dataset in enumerate(datasets):
     L_dur = dataset.L.escape_duration.values
     R_dur = dataset.R.escape_duration.values
 
-    # ax.bar([n-0.25, n+0.25], [L_dur.mean(), R_dur.mean()], width=0.5, color=[dataset.color, dataset.mice_color], yerr= [sem(L_dur), sem(R_dur)])
 
     triple_plot(
                 n - shift, 
@@ -111,5 +110,51 @@ ax.figure.savefig(fig_1_path / 'panel_S_C_duration_per_arm.eps', format='eps', d
 '''
 from paper.utils.misc import run_multi_t_test_bonferroni
 run_multi_t_test_bonferroni(_data)
+
+
+# %%
+'''
+    For each geoedesic ratio (i.e. arm configuration) get which trials go left vs right
+'''
+by_geodesic_ratio = dict()
+for n, dataset in enumerate(datasets):
+    for i,trial in dataset.iterrows():
+        if trial.escape_arm == 'left':
+            length = dataset.maze['left_path_length']
+        elif trial.escape_arm == 'right':
+            length = dataset.maze['right_path_length']
+        else:
+            continue
+
+        if length not in by_geodesic_ratio.keys():
+            by_geodesic_ratio[length] = []
+        by_geodesic_ratio[length].append(trial.escape_duration)
+
+import matplotlib.pyplot as plt
+
+# %%
+f, ax = plt.subplots(figsize=(16, 9))
+
+from myterial import indigo, blue_dark, teal, green
+
+colors = (indigo, blue_dark, teal, green)
+
+for n, (length, durations) in enumerate(by_geodesic_ratio.items()):
+        triple_plot(
+                length, 
+                durations, 
+                ax,
+                shift=20, 
+                scatter_kws=dict(s=20), 
+                box_width=20,
+                kde_normto=20,
+                pad=0.00,
+                color=colors[n],
+                spread=3,
+                )
+
+_ = ax.set(xticks=np.array(list(by_geodesic_ratio.keys()))+20, xticklabels=list(by_geodesic_ratio.keys()), ylim=[0, 15], xlabel='path length (cm)', ylabel='escape duration (s)')
+
+ax.figure.savefig(fig_1_path / 'panel_S_C_duration_per_arm_v2.eps', format='eps', dpi=dpi)
 
 # %%

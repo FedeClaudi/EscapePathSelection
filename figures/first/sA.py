@@ -22,8 +22,11 @@ from paper import Tracking
 '''
 
 # %%
+from myterial import pink
+
 ax = generate_figure()
 
+X, Y = [], []
 skip = 40 * 120
 
 for sess in list(M4.sessions):
@@ -41,15 +44,14 @@ for sess in list(M4.sessions):
     y = tracking.y.copy()
     y[bad] = np.nan
 
-    ax.plot(
-        x[skip:first.stim_frame][::trace_downsample * 2],
-        y[skip:first.stim_frame][::trace_downsample * 2],
-        color=tracking_color, alpha=.25, lw=1.25)
-
+    X.extend(list(x[skip:first.stim_frame]))
+    Y.extend(list(y[skip:first.stim_frame]))
+    
+ax.hexbin(X, Y, mincnt=10, gridsize=50, bins='log', cmap='Blues')
 ax.plot(
     x[skip:first.stim_frame][::trace_downsample * 2],
     y[skip:first.stim_frame][::trace_downsample * 2],
-    color=tracking_color_dark, alpha=1, lw=2.25)
+    color=pink, alpha=1, lw=3)
 
 ax.axis('off')
 ax.figure.savefig(fig_1_path / 'panel_S_A.eps', format='eps', dpi=dpi)
