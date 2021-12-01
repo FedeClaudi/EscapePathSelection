@@ -36,12 +36,12 @@ f, axes = plt.subplots(ncols=2, figsize=(16, 9), sharex=False, sharey=True)
 
 for n, maze in enumerate(data.maze.unique()):
     for mn, model in enumerate(data.model.unique()):
-        print(model)
         arms = data.loc[(data.model == model)&(data.maze == maze)].escape_arms.iloc[0]
-
         pr = np.nanmean(arms)
 
         axes[n].bar(mn, pr, color=MODELS_COLORS[mn], label=MODELS[mn])
+
+    break
 
 axes[0].legend()
 axes[1].legend()

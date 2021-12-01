@@ -35,14 +35,14 @@ TRAINING_SETTINGS['episodes'] = 250
 TRAINING_SETTINGS['max_n_steps'] = 500
 
 agents =  {
-    # 'QTable':QTableModel,
+    'QTable':QTableModel,
     'DynaQ_20':DynaQModel,
     # 'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 agent_kwargs = {
-    'QTable':dict(learning_rate=.9, penalty_move = 1e-8),
-    'DynaQ_20':dict(n_planning_steps=20),   
+    'QTable':dict(discount=.9, learning_rate=.9, penalty_move = 1e-8),
+    'DynaQ_20':dict(discount=.4, n_planning_steps=20),   
     'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False, learning_rate=.2, discount=.8),
 }
 

@@ -1,4 +1,7 @@
 # %%
+import warnings
+warnings.simplefilter(action='ignore', category=UserWarning)
+
 import sys
 from pathlib import Path
 import os
@@ -31,9 +34,9 @@ excluded = ['InfluenceZones']
 cache_path = Path('/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/')
 
 p_right = dict()
-f, axes = plt.subplots(figsize=(12, 8), ncols=2, nrows=2, sharex=True, sharey=False)
+f, axes = plt.subplots(figsize=(12, 8), ncols=2, nrows=2, sharex=False, sharey=False)
 for n, maze in enumerate(MAZES):
-    for model, color in zip(MODELS, MODELS_COLORS):
+    for model_n, (model, color) in enumerate(zip(MODELS, MODELS_COLORS)):
         if model in excluded:
             continue
 
@@ -42,7 +45,6 @@ for n, maze in enumerate(MAZES):
             data_path = cache_path / f'{model}_training_on_{maze}.h5'
             data = pd.read_hdf(data_path, key='hdf')
         except Exception as e:
-            print(f'Could not load {model} on {maze}', data_path, e, sep='\n')
             continue
         
         # get when mean success rate > criterion
@@ -57,7 +59,6 @@ for n, maze in enumerate(MAZES):
             above = np.where(mean_sr > .8)[0][0]
             above_steps = mean_steps[above]
         except IndexError:
-            logger.info(f'{model} does not reach criterion')
             above = None
             above_steps = None
 
@@ -65,20 +66,22 @@ for n, maze in enumerate(MAZES):
         plot_mean_and_error(mean_sr, 
                         rolling_mean(data.play_status_sem, ROLLING_MEAN_WINDOW), axes[0, n], label=model, color=color)
 
-        # plot number of steps
-        plot_mean_and_error(mean_steps, 
-                        rolling_mean(data.play_steps_sem, ROLLING_MEAN_WINDOW), axes[1, n], label=model, color=color, err_alpha=.1)
+        # plot number of steps to above threshold
+        axes[1, n].bar(model_n, above_steps, label=model, color=color)
 
         # plot p(R)
-        plot_mean_and_error(rolling_mean(data.play_arm, ROLLING_MEAN_WINDOW), 
+        pR = rolling_mean(data.play_arm, ROLLING_MEAN_WINDOW)
+        plot_mean_and_error(pR, 
                         rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW), axes[0, n+1], label=model, color=color, err_alpha=.1)
-        p_right[model] = (rolling_mean(data.play_arm, ROLLING_MEAN_WINDOW)[-1], rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW)[-1])
+        p_right[model] = (pR[-1], rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW)[-1])
+
+        # plot p(R) * accuracy
+        axes[1, n+1].plot(pR*mean_sr, color=color)
+
 
         # mark when mean-sr > criterion
         if above is not None:
-            logger.info(f'|Maze {maze}| agent: {model} - above criterion at episode {above} ({above_steps:.2f} steps)')
             axes[0, n].plot([above, above], [0, mean_sr[above]], lw=3, color=color, ls=':')
-            axes[1, n].plot([above, above], [0, mean_steps[above]], lw=3, color=color, ls=':')
 
         
     logger.debug('-'*20)
@@ -86,13 +89,36 @@ for n, maze in enumerate(MAZES):
     break
 
 axes[0, 0].set(title='M1', ylabel='accuracy', ylim=[0, 1])
-axes[0, 1].set(ylim=[-0.1, 1.1], ylabel='p(R)')
-axes[1, 0].set(xlabel='episodes', ylabel='comulative steps')
-# axes[1, 1].set(xlabel='episodes')
+axes[0, 1].set(ylim=[-0.1, 1.1], ylabel='p(R)', xticks=[])
+axes[1, 0].set(xlabel='Model', ylabel=r'steps to 80% accuracy', xticks=[0, 1, 2], xticklabels=MODELS, yticks=[0, 100000])
+axes[1, 1].set(xlabel='episodes', ylabel='p(R)*accuracy')
 
 clean_axes(f)
 f.savefig(fig_3_path / 'panel_B_learning_curves.eps', format='eps', dpi=dpi)
 plt.show()
+
+
+
+# %%
+# plot barplot of steps to 80%
+
+maze = 'M1'
+
+f, axes = plt.subplots(figsize=(16, 9), ncols=2)
+
+for n, (model, color) in enumerate(zip(MODELS, MODELS_COLORS)):
+    data_path = cache_path / f'{model}_training_on_{maze}.h5'
+    data = pd.read_hdf(data_path, key='hdf')
+    mean_sr = rolling_mean(data.play_status, ROLLING_MEAN_WINDOW)
+
+    try:
+        above = np.where(mean_sr > .8)[0][0]
+        above_steps = mean_steps[above]
+    except IndexError:
+        logger.info(f'{model} does not reach criterion')
+    else:
+        axes[0].bar(n, above_steps)
+
 
 
 # %%
@@ -102,11 +128,13 @@ for k, (mn, sm) in p_right.items():
 
 
 
-# %%
-from rl import environment
-a = pd.read_hdf('/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/DynaQ_20_training_on_M1.h5', key='hdf')
 
-plt.plot(a.play_arm)
-plt.plot(a.play_arm + a.play_arm_sem)
-plt.plot(a.play_arm - a.play_arm_sem)
+
+# %%
+a = pd.read_hdf('/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/guided_exploration.h5', key='hdf')
+
+print(
+    np.nanmean(a.iloc[1].escape_arms),
+    np.nanmean(a.iloc[2].escape_arms),
+)
 # %%

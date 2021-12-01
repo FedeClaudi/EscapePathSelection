@@ -1,4 +1,4 @@
-
+# %%
 import sys
 sys.path.append('./')
 import matplotlib.pyplot as plt
@@ -64,3 +64,6 @@ clean_axes(f)
 plt.show()
 f.savefig(fig_3_path / 'panel_C_guided_exploration_n_state_transitions_histograms.eps', format='eps', dpi=dpi)
 
+
+
+# %%

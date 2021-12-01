@@ -67,3 +67,35 @@ for i, row in data.loc[data.maze=='M1'].iterrows():
     print(f'model: {row.model} p(R): {mn:.2f} +- {sm:2f}')
 
 # %%
+'''
+    New bar plots
+'''
+
+f, axes = plt.subplots(figsize=(12, 8), ncols=2)
+
+for mn, (model, color) in enumerate(zip(data.model.unique(), MODELS_COLORS)):
+    exp_data = data.loc[(data.model == model)&(data.maze == 'M1')]
+    
+    # percentage of succesful sessions
+    exp = np.array(exp_data.results.iloc[0])
+
+    # average across repeats of the same session
+    mean = np.mean(exp, 1)
+
+    # count sessions with >.8 success rate
+    mean[mean < .8] = 0
+    mean[mean >= .8] = 1
+    axes[0].bar(mn, np.mean(mean), color=color)
+
+    # get p(R)
+    arms = [arm if np.mean(success > 0.8) else np.nan for success, arm in zip(exp_data.results, exp_data.escape_arms) ]
+
+    pR = np.nanmean(arms)
+    sm = sem(arms, nan_policy='omit')
+    axes[1].bar(mn, pR, color=color)
+
+axes[0].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylabel=r'% succesfull sessions', ylim=[0, 1])
+
+_ = axes[0].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylabel=r'% succesfull sessions', ylim=[0, 1])
+_ = axes[1].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylabel='p(R)', ylim=[0, 1])
+f.savefig(fig_3_path / 'panel_D_guided_expl_successes_v2.eps', format='eps', dpi=dpi)
