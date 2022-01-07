@@ -23,6 +23,7 @@ from paper import Tracking
 
 # %%
 from myterial import pink
+import matplotlib.pyplot as plt
 
 ax = generate_figure()
 
@@ -47,7 +48,10 @@ for sess in list(M4.sessions):
     X.extend(list(x[skip:first.stim_frame]))
     Y.extend(list(y[skip:first.stim_frame]))
     
-ax.hexbin(X, Y, mincnt=10, gridsize=50, bins='log', cmap='Blues')
+hex = ax.hexbin(X, Y, mincnt=10, gridsize=50, bins='log', cmap='Blues')
+cax = plt.axes([0.85, 0.1, 0.075, 0.8])
+
+plt.colorbar(hex, cax=cax, label='Occupancy (s)', spacing='proportional')
 ax.plot(
     x[skip:first.stim_frame][::trace_downsample * 2],
     y[skip:first.stim_frame][::trace_downsample * 2],

@@ -212,8 +212,28 @@ f.savefig(fig_1_path / 'glm_v2.eps', format='eps', dpi=dpi)
 
 
 # %%
+from scipy.stats import ttest_1samp
 # print params magnitude
+ps = []
 for param in params.keys():
     values = np.array([mod.params[param] for mod in results_models['full']])
 
+    ps.append(ttest_1samp(values, 0).pvalue)
+
     print(f'{param}: {np.mean(values):.2f} +/- {np.std(values):.2f}')
+
+
+
+significant, pval, _, _ = multipletests(ps, method='bonferroni', alpha=0.05)
+print(significant)
+
+# %%
+# check models params pvales distributions != 0
+P = 0.05/4
+ps = []
+for param, pvals in params.items():
+    ninentyfifth = np.percentile(pvals, 95)
+    print(param, ninentyfifth > P)
+    ps.append(ttest_1samp(pvals, 0, alternative='less').pvalue)
+significant, pval, _, _ = multipletests(ps, method='bonferroni', alpha=0.05)
+print(*zip(params.keys(), significant), sep='\n')

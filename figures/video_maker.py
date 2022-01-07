@@ -30,6 +30,8 @@ trials = M4.trials.loc[(M4.trials.uid > 88)&(M4.trials.uid < 100)].sort_values('
 trials = dict(
     left=(trials.loc[trials.escape_arm == 'left']),  # 1
     right=(trials.loc[trials.escape_arm == 'right']),
+    center=(trials.loc[trials.escape_arm == 'center']),
+
 )
 
 for side, trials in trials.items():
