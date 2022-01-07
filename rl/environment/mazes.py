@@ -1,5 +1,7 @@
 import numpy as np
 
+import sys
+sys.path.append('./')
 from rl.environment.maze import (
     Maze,
     layout_from_image,
@@ -63,6 +65,35 @@ class PsychometricM2(Maze):
         layout = add_diagonal_bridge(layout, 13, 25, 20, 16, double=True)
         layout = add_diagonal_bridge(layout, 25, 33, 16, 24, double=True)
         layout = add_diagonal_bridge(layout, 13, 25, 20, 33)
+        layout = add_diagonal_bridge(layout, 25, 33, 33, 24)
+        layout = add_catwalk(layout, 24, 33, 5)
+
+        Maze.__init__(
+            self, 
+            layout,
+            *args,
+            START=(24, 34),
+            SHELTER=(24, 15),
+            MIN_N_STEPS=28,
+            description='Asymmetric M1 maze from psychometric experiments',
+            name='PsychometricM2',
+            **kwargs,
+        )
+
+class PsychometricM3(Maze):
+    def __init__(self, *args, **kwargs):
+        # layout = layout_from_image('./maze_images/M2.png')
+        layout = np.ones((50, 50))
+
+        # add platforms
+        platforms = [(25, 16), (33, 24), (25, 33), (11, 18)]
+        for (px, py) in platforms:
+            layout = add_platform(layout, py, px)
+
+        # add bridges
+        layout = add_diagonal_bridge(layout, 11, 25, 18, 16, double=True)
+        layout = add_diagonal_bridge(layout, 25, 33, 16, 24, double=True)
+        layout = add_diagonal_bridge(layout, 11, 25, 18, 33)
         layout = add_diagonal_bridge(layout, 25, 33, 33, 24)
         layout = add_catwalk(layout, 24, 33, 5)
 
@@ -306,3 +337,19 @@ class M3(Maze):
             [1, 1, 0, 0, 0],
             [1, 1, 0, 1, 1],
         ])
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    m1 = PsychometricM1(None)
+    m2 = PsychometricM2(None)
+    m3 = PsychometricM3(None)
+
+    f, ax = plt.subplots()
+
+    ax.imshow(m1.maze, vmax=.5, alpha=.5)
+    ax.imshow(m2.maze, vmax=.5, alpha=.5)
+    ax.imshow(m3.maze, vmax=.5, alpha=.5)
+
+    plt.show()

@@ -16,7 +16,7 @@ from scipy.stats import sem
 from myterial import salmon, pink, blue_light, green
 from fcutils.maths import rolling_mean
 
-from figures.third import PsychometricM1, PsychometricM6, QTableModel, DynaQModel, InfluenceZones
+from figures.third import PsychometricM1, PsychometricM2, PsychometricM3, QTableModel, DynaQModel, InfluenceZones
 from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 
 
@@ -37,7 +37,7 @@ TRAINING_SETTINGS['max_n_steps'] = 500
 agents =  {
     'QTable':QTableModel,
     'DynaQ_20':DynaQModel,
-    # 'InfluenceZonesNoSheltVec':InfluenceZones,
+    'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 agent_kwargs = {
@@ -50,8 +50,9 @@ agent_kwargs = {
 #                                      RUN                                     #
 # ---------------------------------------------------------------------------- #
 def run():
-    for maze_name, maze in zip(('M1', 'M6'), (PsychometricM1, PsychometricM6)):
-        if maze_name == 'M6':
+    for maze_name, maze in zip(('M1', 'M2', 'M3'), (PsychometricM1, PsychometricM2, PsychometricM3)):
+        if maze_name != 'M3':
+            print("Skipping")
             continue
 
         logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')

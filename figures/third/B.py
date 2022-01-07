@@ -24,6 +24,9 @@ sys.path.append('./')
 from figures.third import MODELS_COLORS, MODELS, MAZES, fig_3_path
 from figures.settings import dpi
 
+import warnings
+warnings.filterwarnings("ignore")
+
 '''
     Plot the taining curves of all models (p(success))
 ''' 
@@ -34,7 +37,8 @@ excluded = ['InfluenceZones']
 cache_path = Path('/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/')
 
 p_right = dict()
-f, axes = plt.subplots(figsize=(12, 8), ncols=2, nrows=2, sharex=False, sharey=False)
+f, axes = plt.subplots(figsize=(16, 14), ncols=3, nrows=4, sharex=False, sharey=False)
+
 for n, maze in enumerate(MAZES):
     for model_n, (model, color) in enumerate(zip(MODELS, MODELS_COLORS)):
         if model in excluded:
@@ -67,31 +71,32 @@ for n, maze in enumerate(MAZES):
                         rolling_mean(data.play_status_sem, ROLLING_MEAN_WINDOW), axes[0, n], label=model, color=color)
 
         # plot number of steps to above threshold
-        axes[1, n].bar(model_n, above_steps, label=model, color=color)
+        if above_steps is not None:
+            axes[1, n].bar(model_n, above_steps, label=model, color=color)
 
         # plot p(R)
         pR = rolling_mean(data.play_arm, ROLLING_MEAN_WINDOW)
         plot_mean_and_error(pR, 
-                        rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW), axes[0, n+1], label=model, color=color, err_alpha=.1)
+                        rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW), axes[2, n], label=model, color=color, err_alpha=.1)
         p_right[model] = (pR[-1], rolling_mean(data.play_arm_sem, ROLLING_MEAN_WINDOW)[-1])
 
         # plot p(R) * accuracy
-        axes[1, n+1].plot(pR*mean_sr, color=color)
-
+        axes[3, n].plot(pR*mean_sr, color=color)
 
         # mark when mean-sr > criterion
         if above is not None:
             axes[0, n].plot([above, above], [0, mean_sr[above]], lw=3, color=color, ls=':')
 
         
-    logger.debug('-'*20)
     axes[0, n].legend()
-    break
+
 
 axes[0, 0].set(title='M1', ylabel='accuracy', ylim=[0, 1])
-axes[0, 1].set(ylim=[-0.1, 1.1], ylabel='p(R)', xticks=[])
+axes[2, 0].set(ylim=[-0.1, 1.1], ylabel='p(R)', xticks=[])
 axes[1, 0].set(xlabel='Model', ylabel=r'steps to 80% accuracy', xticks=[0, 1, 2], xticklabels=MODELS, yticks=[0, 100000])
-axes[1, 1].set(xlabel='episodes', ylabel='p(R)*accuracy')
+axes[3, 0].set(xlabel='episodes', ylabel='p(R)*accuracy')
+axes[0, 1].set(title='M2', ylim=[0, 1])
+axes[0, 2].set(title='M3', ylim=[0, 1])
 
 clean_axes(f)
 f.savefig(fig_3_path / 'panel_B_learning_curves.eps', format='eps', dpi=dpi)
@@ -125,9 +130,6 @@ for n, (model, color) in enumerate(zip(MODELS, MODELS_COLORS)):
 for k, (mn, sm) in p_right.items():
     print(f'model: {k} final p(R): {mn:.2f} =- {sm:.2f}')
     
-
-
-
 
 
 # %%

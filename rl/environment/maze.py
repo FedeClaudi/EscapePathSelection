@@ -36,12 +36,15 @@ class Maze(MazeLayout, Environment):
         MazeLayout.__init__(self, maze, *args, **kwargs)
         Environment.__init__(self, self.maze, start_cell=self.START, shelter_cell=self.SHELTER)
 
-        self.reward_exit = REWARDS['reward_exit']
-        self.penalty_move = REWARDS['penalty_move']
-        self.penalty_visited = REWARDS['penalty_visited']
-        self.penalty_impossible_move = REWARDS['penalty_impossible_move']
-        self.reward_euclidean = REWARDS['reward_euclidean']
-        self.reward_geodesic = REWARDS['reward_geodesic']
+        try:
+            self.reward_exit = REWARDS['reward_exit']
+            self.penalty_move = REWARDS['penalty_move']
+            self.penalty_visited = REWARDS['penalty_visited']
+            self.penalty_impossible_move = REWARDS['penalty_impossible_move']
+            self.reward_euclidean = REWARDS['reward_euclidean']
+            self.reward_geodesic = REWARDS['reward_geodesic']
+        except Exception:
+            pass
 
         self.render(Render.NOTHING)
 

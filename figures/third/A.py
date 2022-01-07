@@ -15,7 +15,7 @@ import numpy as np
 
 from fcutils.plot.figure import clean_axes
 
-from figures.third import PsychometricM1, PsychometricM6, QTableTracking, fig_3_path
+from figures.third import PsychometricM1, PsychometricM2, PsychometricM6, QTableTracking, fig_3_path
 from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 from figures.settings import dpi
 
@@ -32,7 +32,7 @@ sessions = (1, 4)
 # f, ax = plt.subplots(figsize=(7, 7))
 plt.figure(figsize=(9, 9))
 
-maze = PsychometricM1(REWARDS)
+maze = PsychometricM2(REWARDS)
 
 plt.imshow(maze.maze)
 

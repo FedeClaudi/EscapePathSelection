@@ -7,7 +7,7 @@ import pandas as pd
 
 from fcutils.plot.figure import clean_axes
 
-from figures.third import PsychometricM1, PsychometricM6, QTableTracking, DynaQTracking, InfluenceZonesTracking, fig_3_path, accepted_sessions, MAZES, Status
+from figures.third import PsychometricM1, PsychometricM2, PsychometricM3, QTableTracking, DynaQTracking, InfluenceZonesTracking, fig_3_path, accepted_sessions, MAZES, Status
 from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 from figures.settings import dpi
 
@@ -30,7 +30,12 @@ agent_kwargs = {
 # iterate over mazes and models
 RESULTS = dict(maze=[], model=[], results=[], escape_arms=[])
 f, axes = plt.subplots(ncols=2, figsize=(16, 9))
-for maze_number, (maze_name, maze) in enumerate(zip(MAZES, (PsychometricM1, PsychometricM6))):
+for maze_number, (maze_name, maze) in enumerate(zip(MAZES, (PsychometricM1, PsychometricM2, PsychometricM3))):
+    # if maze_name == 'M1':
+    #     continue
+    # else:
+    print(f"Training on: {maze_name}")
+
     for name, model in agents.items():
         # agent specific settings
         agent_settings = TRAINING_SETTINGS.copy()
@@ -88,9 +93,9 @@ for maze_number, (maze_name, maze) in enumerate(zip(MAZES, (PsychometricM1, Psyc
         RESULTS['results'].append(np.vstack(results))
         RESULTS['escape_arms'].append(arms)
 
-        axes[maze_number].hist(results, label=name, alpha=.4)
+        # axes[maze_number].hist(results, label=name, alpha=.4)
 
 pd.DataFrame(RESULTS).to_hdf('./cache/guided_exploration.h5', key='hdf')
-axes[0].legend()
-axes[1].legend()
-plt.show()
+# axes[0].legend()
+# axes[1].legend()
+# plt.show()
