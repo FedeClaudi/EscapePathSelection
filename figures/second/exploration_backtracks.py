@@ -82,3 +82,60 @@ def get_trips(rois, source, target, tracking):
 
         trips.append((at_source, tgt, arm, dist))
     return trips
+
+# %%
+
+def at_roi(rois, target):
+    """
+        Timepoints of when the mouse is in a given ROI
+    """
+    in_target = np.zeros(len(rois))
+    in_target[rois == target] = 1
+    at_target = np.where(np.diff(in_target)>0)[0]
+
+    return at_target
+
+
+
+
+for n, data in enumerate(datasets):
+    complete, incomplete = [], []
+
+    for sess in data.sessions:
+        try:
+            exploration = pd.Series((Explorations & f'session_name="{sess}"').fetch1())
+        except Exception:
+            print(f'No exploration for {sess}')
+            continue
+
+            # get all the times the mouse reaches the shelter and the threat platform
+            at_shelter = at_roi(exploration.maze_roi, 0)
+            at_threat = at_roi(exploration.maze_roi, 1)
+            at_roi = np.hstack([at_shelter, at_threat])
+            at_roi_identity = np.hstack([np.zeros_like(at_shelter), np.ones_like(at_threat)])
+
+            at_roi_identity = at_roi_identity[np.argsort(at_roi)]
+            at_roi = np.sort(at_roi)
+
+            # loop over each time the mouse enters a target and see what happens next
+            complete_sess, incomplete_sess = 0, 0
+            for i, (roi, time) in enumerate(zip(at_roi_identity[:-1], at_roi[:-1])):
+                next_roi = at_roi_identity[i+1]
+                next_time = at_roi[i+1]
+
+                if next_time - time < 30:
+                    # too brief
+                    continue
+
+                # check if mouse returned to same ROI
+                if next_roi == roi:
+                    incomplete_sess += 1
+                else:
+                    complete_sess += 1
+            complete.append(complete_sess)
+            incomplete.append(incomplete_sess)
+
+            
+
+        break
+    break
