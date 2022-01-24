@@ -17,7 +17,7 @@ from fcutils.path import from_yaml
 from paper.dbase.ccm import run as get_matrix
 from paper.dbase.utils import correct_tracking_data, get_roi_at_each_frame
 from paper import paths
-
+from paper.dbase.utils import load_tdms_from_winstore
 
 
 def load_stimuli_from_tdms(tdmspath, software='behaviour'):

@@ -29,6 +29,19 @@ from fcutils.maths.fit import linear_regression
 
 print(M1, M2, M3, M4, M6, sep='\n\n')
 
+# %%
+# Run X2 test on each arm
+from scipy.stats import chi2_contingency
+
+
+# contingency table (n escapes per arm across mice)
+table = np.array([
+    [M1.nR, M2.nR, M3.nR, M4.nR],
+    [M1.nL, M2.nL, M3.nL, M4.nL],
+])
+
+stat, p, dof, expected = chi2_contingency(table)
+print(p)
 
 
 # %% get
@@ -59,7 +72,6 @@ fisher(table, ' p(R) in M4 vs M1')
 
 # -------------- plot psychometric curve across maze 1->4 (+ 6) -------------- #
 
-# TODO run bayes and cache
 
 ax = generate_figure()
 

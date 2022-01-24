@@ -3,7 +3,88 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
+import shutil
 
+def load_tdms_from_winstore(filetomove):
+        print('Moving ', filetomove, ' with size ', np.round(os.path.getsize(filetomove)/1000000000, 2), ' GB')
+        temp_dest = "M:\\"
+        origin, name = os.path.split(filetomove)
+        dest = os.path.join(temp_dest, name)
+        if name in os.listdir(temp_dest):
+                s1 = os.path.getsize(filetomove)
+                s2 = os.path.getsize(dest)
+                if s1 == s2:
+                        print('File was already there')
+                        return dest
+                else:
+                        os.remove(dest)
+        shutil.copy(filetomove, dest)
+
+        print('Moved {} to {}'.format(filetomove, dest))
+        return dest
+
+
+def find_audio_stimuli(data, th, sampling_rate):
+    above_th = np.where(data > th)[0]
+    peak_starts = [x + 1 for x in np.where(np.diff(above_th) > sampling_rate)]
+    stim_start_times = above_th[peak_starts]
+    try:
+        stim_start_times = np.insert(stim_start_times, 0, above_th[0])
+    except:
+        raise ValueError
+    else:
+        return stim_start_times
+
+
+# ? see https://github.com/FedeClaudi/fcutils/blob/6c862ac3f8/fcutils/maths/stimuli_detection.py
+# def find_visual_stimuli(data, th, sampling_rate):
+#     # Filter the data to remove high freq noise, then take the diff and thereshold to find changes
+#     filtered = butter_lowpass_filter(data, 75, int(sampling_rate / 2))
+#     d_filt = np.diff(filtered)
+
+#     starts = find_peaks_in_signal(d_filt, 10000, -0.0005, above=False)[1:]
+#     ends = find_peaks_in_signal(d_filt, 10000, 0.0003, above=True)[1:]
+
+#     if not len(starts) == len(ends):
+#         if abs(len(starts) - len(ends)) > 1:
+#             raise ValueError(
+#                 "Too large error during detection: s:{} e{}".format(
+#                     len(starts), len(ends)
+#                 )
+#             )
+#         print(
+#             "Something went wrong: {} - starts and {} - ends".format(
+#                 len(starts), len(ends)
+#             )
+#         )
+
+#         # # ? Fo1r debugging
+#         # f, ax = plt.subplots()
+#         # ax.plot(filtered, color='r')
+#         # ax.plot(butter_lowpass_filter(np.diff(filtered), 75, int(sampling_rate/2)), color='g')
+#         # ax.scatter(starts, [0.25 for i in starts], c='r')
+#         # ax.scatter(ends, [0 for i in ends], c='k')
+
+#         # plt.show()
+
+#         # to_elim = int(input("Which one to delete "))
+#         to_elim = -1
+#         if len(starts) > len(ends):
+#             starts = np.delete(starts, to_elim)
+#         else:
+#             ends = np.delete(ends, to_elim)
+
+#     assert len(starts) == len(ends), "cacca"
+
+#     # Return as a list of named tuples
+#     stim = namedtuple("stim", "start end")
+#     stimuli = [stim(s, e) for s, e in zip(starts, ends)]
+
+#     for s, e in stimuli:  # check that the end is after the start
+#         return
+#         # if e < s: raise ValueError("Wrong stimuli detection")
+
+#     return stimuli
 
 def load_visual_stim_log(path):
     if not os.path.isfile(path): raise FileExistsError("Couldnt find log file: ", path)

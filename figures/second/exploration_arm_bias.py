@@ -132,7 +132,7 @@ time_on_arm = dict(L=[], R=[])
 all_summaries = {}
 f, axes = plt.subplots(ncols=2, nrows=3, figsize=(16, 9), sharex=True)
 for n, data in enumerate(datasets):
-    # et ROI at each frame during explration
+    # get ROI at each frame during explration
     store = dict(
         to=[],
         arm=[],

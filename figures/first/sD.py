@@ -72,7 +72,7 @@ for n, data in enumerate(datasets):
         r = np.count_nonzero(exploration.body_tracking[:, 0] > 550)
 
         # normalize by path length
-        l = l / data.maze['left_path_length'] * data.maze['right_path_length']
+        # l = l / data.maze['left_path_length'] * data.maze['right_path_length']
 
         L.append(l/(l+r))
         R.append(r/(l+r))
@@ -207,32 +207,6 @@ run_multi_t_test_bonferroni(clean_data)
 
 
 
-# %%
-# # fit GLM on all data
-
-# for data in datasets:
-#     angle_ratio = data.maze['left_path_angle']/ data.maze['right_path_angle']
-#     data.trials['angle_ratio'] = angle_ratio
-#     data.trials['geodesic_ratio'] = data.maze['ratio']
-#     data.trials['outcomes'] = [1 if arm == 'right' else 0 for arm in data.trials.escape_arm.values]
-#     data.trials['origin'] = [1 if arm == 'right' else 0 for arm in data.trials.origin_arm.values]
-#     data.trials['maze'] = data.maze['maze_name'].upper()
-
-# # glm_data = pd.DataFrame(glm_data)
-# glm_data = pd.concat([d.trials for d in datasets]).reset_index()
-# glm_data = glm_data[['maze', 'angle_ratio', 'origin', 'geodesic_ratio', 'outcomes']]
-
-# glm1 = GLM(glm_data, ['angle_ratio', 'geodesic_ratio', 'origin'], ['pR'])
-# R2_one, _ = glm1.fit_bootstrapped(repetitions=10000,)
-
-# glm2 = GLM.from_datasets(datasets)
-# R2_two, _ = glm2.fit_bootstrapped(repetitions=10000)
-
-
-# ax = generate_figure()
-# ax.hist(R2_one, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - with origin',  color=[.4, .4, .4])
-# ax.hist(R2_two, bins=np.linspace(.9985, .9999, 30), label='$r^2$ - without origin', color='salmon', alpha=.6)
-# ax.legend()
 
 
 # %%
