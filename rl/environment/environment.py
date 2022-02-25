@@ -50,7 +50,7 @@ class Environment():
     # behaviour variables
     illegal_move = False  # check if last move was illegal
     stop_on_error = False  # check if play mode
-    n_play_steps = 1000  # max number of steps in play mode
+    n_play_steps = 100  # max number of steps in play mode
     shelter_found = True  # keeps track of if the agent found the shelter
     at_shelter = False  # is the agent currently in the shelter cell?
 

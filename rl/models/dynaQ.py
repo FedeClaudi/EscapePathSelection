@@ -112,6 +112,15 @@ class DynaQModel(QLearner, DynaPlanner):
         max_next_Q = self.state_q_max(state_index)
         self.Q[state_index, action] += self.learning_rate * (reward + self.discount * max_next_Q - self.Q[state_index, action])
 
+        # print(f"""
+        #     {self.state_lookup[state_index]}
+        #     reward: {reward}
+        #     discounted expected: {self.discount * max_next_Q}
+        #     delta: {(reward + self.discount * max_next_Q - self.Q[state_index, action])}
+        #     q: {self.Q[state_index, action]}
+        
+        # """)
+
         # update model and plan
         self.model.update(self.state_lookup[state_index], action, next_state, reward)
         self.plan()

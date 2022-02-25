@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from loguru import logger
 
 from rl.environment.actions import Action
 from rl.models.Q import QLearner
@@ -9,6 +10,7 @@ from rl.models.tracking import QLearnerTracking
 class QTableModel(QLearner):
     def __init__(self, game, name='QTable', *args, **kwargs):
         super().__init__(game, name='QTable', **kwargs)
+        # logger.info(f"Models parameters '{name}': {self.params}")
 
 
     def training_step(self, state_index):
@@ -33,6 +35,7 @@ class QTableModel(QLearner):
         self.Q[state_index, action] += self.learning_rate * \
             (reward + self.discount * max_next_Q - self.Q[state_index, action])
         return next_state_index, reward, status
+
 
 class QTableTracking(QLearnerTracking):
     '''

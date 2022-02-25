@@ -3,6 +3,9 @@ RANDOM_INIT_POS = True  # if true during learning start position is random (when
 TRACKING_TAKE_ALL_ACTIONS = False  # if true when training on tracking data the agent
     # attempts all actions (not options) at each state. 
 
+MAX_N_STEPS = 25  # consider a sucess only when shelter is reached in fewer steps
+
+
 # TRAINING_SETTINGS = dict(
 #     discount=.9999, 
 #     exploration_rate=.4, 
@@ -11,7 +14,7 @@ TRACKING_TAKE_ALL_ACTIONS = False  # if true when training on tracking data the 
 #     max_n_steps = 500,
 # )
 TRAINING_SETTINGS = dict(
-    discount=.9, 
+    discount=.01, 
     exploration_rate=.4, 
     learning_rate=.8,
     episodes=100,

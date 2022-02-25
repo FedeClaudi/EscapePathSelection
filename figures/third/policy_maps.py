@@ -6,6 +6,7 @@ import numpy as np
 from loguru import logger
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from rich import print
 
 
 from fcutils.plot.figure import clean_axes
@@ -100,7 +101,9 @@ def plot(agent, name, exploration):
     ax.axis('equal')
     ax.axis('off')
 
-    f.savefig(fig_3_path / f'{name}_{exploration}_Q_map.eps', format='eps', dpi=dpi)
+    # f.savefig(fig_3_path / f'{name}_{exploration}_Q_map.eps', format='eps', dpi=dpi)
+
+    return ax
 
 
 
@@ -117,14 +120,14 @@ agents =  {
 }
 
 agent_kwargs = {
-    'QTable':dict(learning_rate=.9, penalty_move = 1e-8),
-    'DynaQ_20':dict(n_planning_steps=20),   
-    'InfluenceZonesNoSheltVec':dict(predict_with_shelter_vector=False, learning_rate=.2, discount=.8),
+    'QTable':dict(discount=1, learning_rate=.9, penalty_move = 0),
+    'DynaQ_20':dict(discount=0, n_planning_steps=20),   
+    'InfluenceZonesNoSheltVec':dict(discount=0, predict_with_shelter_vector=False, learning_rate=.2),
 }
 maze = PsychometricM1
 
 for n, (name, model) in enumerate(agents.items()):
-
+    if name != "DynaQ_20": continue
     logger.info(f'      training agent: {name} ')
 
     # remove duplicate parameters
@@ -132,19 +135,18 @@ for n, (name, model) in enumerate(agents.items()):
     rewards = REWARDS.copy()
     for param in agent_kwargs[name].keys():
         if param in settings.keys():
-            # print(f'[dim]Overring default settings value for {param}')
+            print(f'[dim]Overring default settings value for {param}')
             del settings[param]
 
         # adjust rewards per model
         if param in rewards.keys():
-            # print(f'[dim]Overring default reward value for {param}')
+            print(f'[dim]Overring default reward value for {param}')
             rewards[param] = agent_kwargs[name][param]
 
     # create an instance
     status = Status.LOSE
     while status != Status.WIN:  # keep going until we found a model that won
         _maze = maze(rewards)
-        
         _maze.build_graph()
         _maze.shelter_found = False
         agent = model(_maze, name=_maze.name, **settings, **agent_kwargs[name])
@@ -152,9 +154,16 @@ for n, (name, model) in enumerate(agents.items()):
         # train
         agent.train(random_start=RANDOM_INIT_POS, episodes=TRAINING_SETTINGS['episodes'], test_performance=True)
         status, play_steps, play_reward, escape_arm, states = _maze.play(agent, start_cell=_maze.START)
+        print(f"Tried simulation, status: {status}")
 
     # plot
-    plot(agent, name, 'free')
+    ax = plot(agent, name, 'free')
+
+    x = np.vstack(states)[:, 0]
+    y = np.vstack(states)[:, 1]
+    ax.plot(x, y, lw=2, color="k")
+    print("done")
+    break
 
 
 

@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import random
 from celluloid import Camera
@@ -57,6 +58,10 @@ class QLearner:
             learning_rate = self.learning_rate,
             episodes = self.episodes,
         )
+
+        if self.discount > 1 or self.discount < 0:
+            raise ValueError("Discount parameter value should be in 0-1 range")
+        
 
 
     def __rich_console__(self, console, measure):
