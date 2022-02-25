@@ -14,30 +14,30 @@ else:
     mice_records = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\FC_animals_records.xlsx'
     exp_records = 'D:\\Dropbox (UCL - SWC)\\Rotation_vte\\datalog.xlsx'
 
-    # raw_data_folder = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze'
-    # raw_metadata_folder = 'metadata'   # appended to raw data folder
-    # raw_video_folder = 'video'   # appended to raw data folder
+    raw_data_folder = 'W:\\swc\\branco\\Federico\\raw_behaviour\\maze'
+    raw_metadata_folder = 'metadata'   # appended to raw data folder
+    raw_video_folder = 'video'   # appended to raw data folder
+    raw_to_sort = 'to_sort'   # appended to raw data folder
+    raw_analoginput_folder = 'analoginputdata'
+    tracked_data_folder = 'W:\\swc\\branco\\Federico\\raw_behaviour\\maze\\pose'
+    raw_ai_folder = 'W:\\swc\\branco\\Federico\\raw_behaviour\\maze\\analoginputdata'
+
+    # trials_clips = 'W:\\swc\\branco\\Federico\\raw_behaviour\\maze\\trials_clips'   # appended to raw data folder
+    trials_clips = 'W:\\swc\\branco\\Federico\\raw_behaviour\\maze\\test_clips'
+
+
+
+    # raw_data_folder = 'K:\\TEMP'
+    # # raw_metadata_folder = 'metadata'   # appended to raw data folder
+    # raw_metadata_folder = 'metadata'
+    # raw_video_folder = 'F:\\video'  # 'video'   # appended to raw data folder
     # raw_to_sort = 'to_sort'   # appended to raw data folder
     # raw_analoginput_folder = 'analoginputdata'
-    # tracked_data_folder = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\pose'
-    # raw_ai_folder = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\analoginputdata'
+    # tracked_data_folder = 'K:\\TEMP\\pose'
+    # raw_ai_folder = 'M:\\TEMP\\analoginputdata'
 
     # # trials_clips = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\trials_clips'   # appended to raw data folder
     # trials_clips = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\test_clips'
-
-
-
-    raw_data_folder = 'K:\\TEMP'
-    # raw_metadata_folder = 'metadata'   # appended to raw data folder
-    raw_metadata_folder = 'metadata'
-    raw_video_folder = 'F:\\video'  # 'video'   # appended to raw data folder
-    raw_to_sort = 'to_sort'   # appended to raw data folder
-    raw_analoginput_folder = 'analoginputdata'
-    tracked_data_folder = 'K:\\TEMP\\pose'
-    raw_ai_folder = 'M:\\TEMP\\analoginputdata'
-
-    # trials_clips = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\trials_clips'   # appended to raw data folder
-    trials_clips = 'Z:\\swc\\branco\\Federico\\raw_behaviour\\maze\\test_clips'
 
 
 

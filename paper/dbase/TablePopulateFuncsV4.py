@@ -20,6 +20,7 @@ from fcutils.maths.geometry import (
 		calc_ang_velocity,
 		)
 from fcutils.video import get_video_params
+# from fcutils.maths.signals import get_onset_offset
 # from fcutils.maths.signals import find_audio_stimuli, find_visual_stimuli
 
 from paper.dbase.utils import (
@@ -30,6 +31,7 @@ from paper.dbase.utils import (
 		correct_tracking_data,
 		correct_tracking_data,
 		load_visual_stim_log,
+		find_audio_stimuli,
 		)
 from paper.dbase.toolbox import ToolBox
 from paper.dbase.ccm import run as get_matrix
@@ -128,10 +130,14 @@ def make_recording_table(table, key):
 
 def fill_in_recording_paths(recordings):
 	# fills in FilePaths table
-	videos = 	files(paths.raw_video_folder) #files(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
-	poses = 	files(paths.tracked_data_folder)
-	metadatas = files(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))
-	ais =		files(paths.raw_ai_folder)
+	videos = 	files(os.path.join(paths.raw_data_folder, paths.raw_video_folder)) #files(os.path.join(paths.raw_data_folder, paths.raw_video_folder))
+	poses = 	files(os.path.join(paths.raw_data_folder, paths.tracked_data_folder))
+	metadatas = [str(f) for f in files(os.path.join(paths.raw_data_folder, paths.raw_metadata_folder))]
+	ais =		[str(f) for f in files(paths.raw_ai_folder)]
+
+	videos = [str(v) for v in videos if "Threat" not in str(v) and "tdms" not in str(v)]
+	poses = [str(v) for v in poses if  "_pose" in str(v) and ".h5" in str(v) and "Threat" not in str(v)]
+
 
 	recs_in_part_table = recordings.FilePaths.fetch("recording_uid")
 
@@ -147,14 +153,14 @@ def fill_in_recording_paths(recordings):
 				key['overview_video'] = rvids[0]
 			else:
 				key['overview_video'] = 'not_found'
-			key['overview_pose'] = [v for v in poses if record_uid in v and "_pose" in v and ".h5" in v and "Threat" not in v][0]
+			key['overview_pose'] = [v for v in poses if record_uid in v][0]
 		except:
-			if record_uid[-1] == "1":
-				vids = [v for v in videos if record_uid[:-2] in v and "Threat" not in v and "tdms" not in v]
+			if record_uid[-1] == "1" or len(record_uid.split('_'))==2:
+				vids = [v for v in videos if record_uid[:-2] in str(v)]
 				if vids:
 					key['overview_video'] = vids[0]
 					try:
-						key['overview_pose'] = [v for v in poses if record_uid[-2:] in v and "_pose" in v and ".h5" in v and key["session_name"] in v][0]
+						key['overview_pose'] = [v for v in poses if record_uid[-2:] in v and key["session_name"] in v][0]
 					except:
 						print("No pose file found for rec: --> ", record_uid)
 						continue
@@ -332,7 +338,7 @@ def make_stimuli_table(table, key):
 
 
 	def make_mantisstimuli(table, key):
-		raise NotImplementedError('Find visual and audio stimuli from fcutils dont exist anymore, need to be found.')
+	
 		def plot_signals(audio_channel_data, stim_start_times, overview=False, threat=False):
 			f, ax = plt.subplots()
 			ax.plot(audio_channel_data)
@@ -370,7 +376,11 @@ def make_stimuli_table(table, key):
 			# ? load the AI file directly
 			# Get stimuli names from the ai file and then stimuli
 			aifile = aifile.replace('.h5', '.tdms')
-			tdms_df, cols = tb.open_temp_tdms_as_df(aifile, move=False, skip_df=True)
+			try:
+				tdms_df, cols = tb.open_temp_tdms_as_df(aifile, move=True, skip_df=True)
+			except (FileNotFoundError, ValueError):
+				print(f'Could not open TDMS: {aifile}')
+				return
 			groups = tdms_df.groups()
 		else:
 			# load feather and extract info
@@ -413,7 +423,8 @@ def make_stimuli_table(table, key):
 				th = 1.5
 			
 			# Find when the stimuli start in the AI data
-			# stim_start_times = find_audio_stimuli(audio_channel_data, th, table.sampling_rate)
+			stim_start_times = find_audio_stimuli(audio_channel_data, th, table.sampling_rate)
+			# stim_start_times = get_onset_offset(audio_channel_data, th)[0]
 
 			# Check we found the correct number of peaks
 			if not len(stimuli) == len(stim_start_times):
@@ -449,52 +460,52 @@ def make_stimuli_table(table, key):
 			
 
 		# ? if there are any visual stimuli, process them
-		if visuals_check:
-			# Check how many audio stim were inserted to make sure that "stimulus_uid" table key is correct
-			n_audio_stimuli = len(stimuli)
+		# if visuals_check:
+		# 	# Check how many audio stim were inserted to make sure that "stimulus_uid" table key is correct
+		# 	n_audio_stimuli = len(stimuli)
 
-			# Get the stimuli start and ends from the LDR AI signal
-			ldr_signal = tdms_df.objects["/'LDR_signal_AI'/'0'"]._data
-			# try:
-			# 	ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
-			# except:
-			# 	print('failed... ', key)
-			# 	return
+		# 	# Get the stimuli start and ends from the LDR AI signal
+		# 	ldr_signal = tdms_df.objects["/'LDR_signal_AI'/'0'"]._data
+		# 	# try:
+		# 	# 	ldr_stimuli = find_visual_stimuli(ldr_signal, 0.24, table.sampling_rate)
+		# 	# except:
+		# 	# 	print('failed... ', key)
+		# 	# 	return
 			
-			# # Get the metadata about the stimuli from the log.yml file
-			log_stimuli = load_visual_stim_log(visual_log_file)
+		# 	# # Get the metadata about the stimuli from the log.yml file
+		# 	log_stimuli = load_visual_stim_log(visual_log_file)
 
-			try:
-				if len(ldr_stimuli) != len(log_stimuli): 
-					if len(ldr_stimuli) < len(log_stimuli):
-						warnings.warn("Something weird going on, ignoring some of the stims on the visual stimuli log file")
-						log_stimuli = log_stimuli.iloc[np.arange(0, len(ldr_stimuli))]
-					else:
-						raise ValueError("Something went wrong with stimuli detection")
-			except:
-				return
+		# 	try:
+		# 		if len(ldr_stimuli) != len(log_stimuli): 
+		# 			if len(ldr_stimuli) < len(log_stimuli):
+		# 				warnings.warn("Something weird going on, ignoring some of the stims on the visual stimuli log file")
+		# 				log_stimuli = log_stimuli.iloc[np.arange(0, len(ldr_stimuli))]
+		# 			else:
+		# 				raise ValueError("Something went wrong with stimuli detection")
+		# 	except:
+		# 		return
 
-			# Add the start time (in seconds) and end time of each stim to log_stimuli df
-			log_stimuli['start_time'] = [s.start/table.sampling_rate for s in ldr_stimuli]
-			log_stimuli['end_time'] = [s.end/table.sampling_rate for s in ldr_stimuli]
-			log_stimuli['duration'] = -1
+		# 	# Add the start time (in seconds) and end time of each stim to log_stimuli df
+		# 	log_stimuli['start_time'] = [s.start/table.sampling_rate for s in ldr_stimuli]
+		# 	log_stimuli['end_time'] = [s.end/table.sampling_rate for s in ldr_stimuli]
+		# 	log_stimuli['duration'] = -1
 
-			# Insert the stimuli into the table, these will be used to populate the metadata table separately
-			for stim_n, stim in log_stimuli.iterrows():
-				stim_key = key.copy()
-				stim_key['stimulus_uid'] =          stim_key['recording_uid']+'_{}'.format(stim_n + n_audio_stimuli)  
-				stim_key['overview_frame'] =        int(np.round(np.multiply(stim.start_time, fps)))
-				stim_key['duration'] =              stim.duration
-				stim_key['overview_frame_off'] =    int(stim_key['overview_frame'] + fps*stim_key['duration'])
-				stim_key['stim_name'] =             stim.stim_name
-				stim_key['stim_type'] =             'visual' 
-				table.insert1(stim_key)
+		# 	# Insert the stimuli into the table, these will be used to populate the metadata table separately
+		# 	for stim_n, stim in log_stimuli.iterrows():
+		# 		stim_key = key.copy()
+		# 		stim_key['stimulus_uid'] =          stim_key['recording_uid']+'_{}'.format(stim_n + n_audio_stimuli)  
+		# 		stim_key['overview_frame'] =        int(np.round(np.multiply(stim.start_time, fps)))
+		# 		stim_key['duration'] =              stim.duration
+		# 		stim_key['overview_frame_off'] =    int(stim_key['overview_frame'] + fps*stim_key['duration'])
+		# 		stim_key['stim_name'] =             stim.stim_name
+		# 		stim_key['stim_type'] =             'visual' 
+		# 		table.insert1(stim_key)
 
-				# Keep record of the path to the log file in the part table 
-				part_key = key.copy()
-				part_key['filepath'] =       visual_log_file
-				part_key['stimulus_uid'] =   stim_key['stimulus_uid']
-				table.VisualStimuliLogFile.insert1(part_key)
+		# 		# Keep record of the path to the log file in the part table 
+		# 		part_key = key.copy()
+		# 		part_key['filepath'] =       visual_log_file
+		# 		part_key['stimulus_uid'] =   stim_key['stimulus_uid']
+		# 		table.VisualStimuliLogFile.insert1(part_key)
 
 	if int(key["uid"])  < 184: 
 		try:
@@ -576,10 +587,12 @@ def make_visual_stimuli_metadata(table):
 def make_trackingdata_table(table, key):
 	from paper.dbase.TablesDefinitionsV4 import Recording, Session, CCM, MazeComponents
 
+	print(key)
+
 	# skip experiments that i'm not interested in 
 	experiment = (Session & key).fetch1("experiment_name")
 	if experiment in table.experiments_to_skip: 
-		# print("Skipping experiment: ", experiment)
+		print("Skipping experiment: ", experiment)
 		return
 
 	# Get videos and CCM
@@ -598,7 +611,7 @@ def make_trackingdata_table(table, key):
 				continue
 	
 		if vid is None:
-			print("Could not fetch video for: ", key)
+			print(f"Could not fetch video for: {key}:\n{(Recording.FilePaths & newkey)} ")
 			return
 	ccm = pd.DataFrame((CCM & key).fetch())
 
@@ -816,17 +829,26 @@ def make_trials_table(table, key):
 	from paper.dbase.TablesDefinitionsV4 import Session, Tracking, Stimuli, Recording
 
 	# get session metadata and tracking data
-	session = pd.Series((Session.session_metadata(key['uid'])).fetch1())
+	try:
+		session = pd.Series((Session.session_metadata(key['uid'])).fetch1())
+	except Exception as e:
+		logger.warning(f'Failed to fetch session data for: {key} with erro: {e}\n{Session.session_metadata(key["uid"])}')
+		return
+
 	if session.experiment_name in table.ignored_experiments:
 		logger.debug(f'Trial for ignored experiment: {session.experiment_name} | skipping')
 		table._insert_placeholder(key)
+		return
+
+	if session.experiment_name not in ['Revision1', 'TwoAndahalf Maze']: 
 		return
 	time.sleep(1)
 
 	try:
 		tracking = pd.Series((Tracking * Tracking.BodyPart & 'bpname="body"' & key).fetch1())
-	except Exception:
-		logger.debug(f'Could not fetch tracking for {session}')
+	except Exception as e:
+		t = (Tracking * Tracking.BodyPart & 'bpname="body"' & key)
+		logger.debug(f'Could not fetch tracking for {session}: {e}\n{t}')
 		return
 
 	# get all session recordings

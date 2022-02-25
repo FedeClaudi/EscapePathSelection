@@ -684,23 +684,6 @@ class Trials(dj.Imported):
         # Trials().delete(placeholders)
 
 if __name__ == "__main__": 
-    # pass
-    # Recording.drop()
-    # print(Homings())
-    # print_erd() 
-    # plt.show()
-    # Recording.drop()
-# 
-    # Tracking().populate(display_progress=True)
-    # Tracking().drop()
-    
-    # Trials().populate(display_progress=True)
-    # Trials().drop()
-
     Explorations().populate(display_progress=True)
 
 #     # Trials.remove_placeholders()
-
-# plt.scatter(tracking.x[::10], tracking.y[::10], s=tracking.speed[::10]*40, c=tracking.roi[::10])
-# plt.scatter(tracking.x[stim.frame:stim.frame+300], tracking.y[stim.frame:stim.frame+300], s=300, c='r')
-# plt.show()
