@@ -35,48 +35,41 @@ logger.add(sys.stdout, level='INFO')
 # TRAINING_SETTINGS['max_n_steps'] = 500
 
 
-N_REPS_MODEL = 160 # number of times each model is ran.
+N_REPS_MODEL = 50 # number of times each model is ran.
 
 # change training settings to reflect parametsr
-TRAINING_SETTINGS['episodes'] = 250
-TRAINING_SETTINGS['max_n_steps'] = 500
+TRAINING_SETTINGS['max_n_steps'] = 150
 
 agents =  {
-    # 'QTable':QTableModel,
-    'DynaQ_20':DynaQModel,
+    'QTable':QTableModel,
+    # 'DynaQ_20':DynaQModel,
     # 'InfluenceZonesNoSheltVec':InfluenceZones,
 }
 
 
 agent_kwargs = {
-    'QTable':dict(discount=0, learning_rate=.9, penalty_move = 0),  # penalty_move = 1e-8
-    'DynaQ_20':dict(discount=0, n_planning_steps=20, penalty_move=0),   
-    'InfluenceZonesNoSheltVec':dict(discount=0, predict_with_shelter_vector=False, learning_rate=.2, penalty_move=0),
+    'QTable':dict(discount=0.8, learning_rate=.9, penalty_move = 1e-8),  # penalty_move = 1e-8
+    'DynaQ_20':dict(discount=0.8, n_planning_steps=20, penalty_move=0),   
+    'InfluenceZonesNoSheltVec':dict(discount=0.8, predict_with_shelter_vector=False, learning_rate=.2, penalty_move=0),
 }
 
-DISCOUNT_VALUES = dict(
-    none        = 0,
-    vlow        = .01,
-    low1        = .05,
-    low2        = 0.075,
-    low3        = 0.1,
-    low4        = 0.25,
-    low5        = 0.4,
-    mid         = 0.5,
-    high1       = 0.6,
-    high2       = 1 - .25,
-    high3       = 1 - .1,
-    high4       = 1 - .075,
-    high5       = 1 - .05,
-    vhigh       = 1 - .01,
-    max         = 1,
+N_episodes = dict(
+    vlow        = 2,
+    low1        = 3,
+    low2        = 4,
+    low3        = 5,
+    low4        = 6,
+    low5        = 7,
+    mid         = 10,
+    high1       = 50,
+    
 )
 
 # ---------------------------------------------------------------------------- #
 #                                      RUN                                     #
 # ---------------------------------------------------------------------------- #
 def run():
-    for discount_name, discount in DISCOUNT_VALUES.items():
+    for n_episodes_name, n_episodes in N_episodes.items():
         for maze_name, maze in zip(('M1', 'M2', 'M3'), (PsychometricM1, PsychometricM2, PsychometricM3)):
             
             # ! skipping mazes
@@ -84,7 +77,7 @@ def run():
                 print("Skipping maze")
                 continue
 
-            logger.info(f'Training on maze: {maze_name} | Number of steps: {TRAINING_SETTINGS["episodes"]} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
+            logger.info(f'Training on maze: {maze_name} | Number of episodes: {n_episodes} | Max steps per episode {TRAINING_SETTINGS["max_n_steps"]}')
 
             for name, model in agents.items():
                 # # ! skipping agents
@@ -92,11 +85,11 @@ def run():
                 #     print("Skipping model")
                 #     continue
                 
-                logger.info(f'      training agent: {name} | {N_REPS_MODEL} reps | on {maze_name} | discount: {discount}')
+                logger.info(f'      training agent: {name} | {N_REPS_MODEL} reps | on {maze_name}')
 
                 # run all instances in parallel
                 pool = multiprocessing.Pool(processes = 8)
-                arguments = [(maze, model, name, rep, discount) for rep in range(N_REPS_MODEL)]
+                arguments = [(maze, model, name, rep) for rep in range(N_REPS_MODEL)]
                 run_results = pool.map(run_instance, arguments)
 
                 # get average results for each episode during training
@@ -115,7 +108,8 @@ def run():
                     'play_arm':[],
                     'play_arm_sem':[],
                 }
-                for epn in range(TRAINING_SETTINGS['episodes']):
+
+                for epn in range(n_episodes):  # range(TRAINING_SETTINGS['episodes']):
                     keys = [
                         ('n_steps', 'episode_length_history'),
                         ('distance_travelled', 'episode_distance_history'),
@@ -131,8 +125,8 @@ def run():
                         except TypeError as e:
                             raise ValueError(f'{[th.data[v] for th in training_history]}')
 
-                pd.DataFrame(training_results).to_hdf(f'./cache/{name}_training_on_{maze_name}_{discount_name}.h5', key='hdf')
-                logger.info(f'SAVED ./cache/{name}_training_on_{maze_name}_{discount_name}.h5')
+                pd.DataFrame(training_results).to_hdf(f'./cache/{name}_training_on_{maze_name}_{n_episodes_name}_training_length.h5', key='hdf')
+                logger.info(f'SAVED ./cache/{name}_training_on_{maze_name}_{n_episodes_name}_training_length.h5')
 
                 escape_results = {  # one for each rep of the model
                     'rewards': [r[1] for r in run_results],
@@ -140,8 +134,8 @@ def run():
                     'escape_arm': [r[3] for r in run_results],
                     'status': [r[4] for r in run_results],
                 }
-                pd.DataFrame(escape_results).to_hdf(f'./cache/{name}_escape_on_{maze_name}_{discount_name}.h5', key='hdf')
-                logger.info(f'SAVED: /cache/{name}_escape_on_{maze_name}_{discount_name}.h5')
+                pd.DataFrame(escape_results).to_hdf(f'./cache/{name}_escape_on_{maze_name}_{n_episodes_name}_training_length.h5', key='hdf')
+                logger.info(f'SAVED: /cache/{name}_escape_on_{maze_name}_{n_episodes_name}_training_length.h5')
 
 
 # ------------------------------- run instance ------------------------------- #
@@ -150,14 +144,13 @@ def run_instance(args):
         Runs a single instance and returns the results, used for
         running multiple instances in parallel.
     '''
-    maze, model, name, rep, discount = args
+    maze, model, name, rep = args
     print(f'\n[{salmon}]Starting[/{salmon}]: Model: [b {pink}]{name}[/b {pink}] - Iteration [{blue_light}]{rep+1}/{N_REPS_MODEL}[/{blue_light}]')
 
     # remove duplicate parameters
     settings = TRAINING_SETTINGS.copy()
     rewards = REWARDS.copy()
 
-    agent_kwargs[name]['discount'] = discount
     for param in agent_kwargs[name].keys():
         if param in settings.keys():
             print(f'[dim]Overring default settings value for {param}, setting it to: {agent_kwargs[name][param]}')

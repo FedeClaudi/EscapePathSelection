@@ -12,7 +12,7 @@ sys.path.append('./')
 from fcutils.maths import rolling_mean
 from figures.third import MODELS_COLORS, MODELS, MAZES, fig_3_path
 
-excluded = ['InfluenceZones', 'InfluenceZonesNoSheltVec', 'QTable']
+excluded = ['InfluenceZones', 'InfluenceZonesNoSheltVec']
 cache_path = Path('/Users/federicoclaudi/Documents/Github/EscapePathSelection/cache/')
 
 
@@ -21,26 +21,20 @@ cache_path = Path('/Users/federicoclaudi/Documents/Github/EscapePathSelection/ca
 
 # %%
 ROLLING_MEAN_WINDOW = 6
-DISCOUNT_VALUES = dict(
-    none        = 0.001,
-    vlow        = .01,
-    low1        = .05,
-    low2        = 0.1,
-    low3        = 0.2,
-    low4        = 0.3,
-    low5        = 0.4,
-    mid         = 0.5,
-    high1       = 0.6,
-    high2       = 0.7,
-    high3       = 0.8,
-    high4       = 0.9,
-    high5       = 0.95,
-    vhigh       = 0.99,
-    max         = 0.999
+N_episodes = dict(
+    vlow        = 2,
+    low1        = 3,
+    low2        = 4,
+    low3        = 5,
+    low4        = 6,
+    low5        = 7,
+    mid         = 10,
+    high1       = 50,
+    
 )
 
-p_right = {m:{d:0 for d in DISCOUNT_VALUES.keys()} for m in MODELS}
-success_rate = {m:{d:0 for d in DISCOUNT_VALUES.keys()} for m in MODELS}
+p_right = {m:{d:0 for d in N_episodes.keys()} for m in MODELS}
+success_rate = {m:{d:0 for d in N_episodes.keys()} for m in MODELS}
 
 for n, maze in enumerate(MAZES):
     if maze != "M3": continue
@@ -49,10 +43,10 @@ for n, maze in enumerate(MAZES):
         if model in excluded:
             continue
 
-        for discount in DISCOUNT_VALUES.keys():
+        for discount in N_episodes.keys():
             # load data
             try:
-                data_path = cache_path / f'{model}_training_on_{maze}_{discount}.h5'
+                data_path = cache_path / f'{model}_training_on_{maze}_{discount}_training_length.h5'
                 data = pd.read_hdf(data_path, key='hdf')
             except Exception as e:
                 print(e)
@@ -70,7 +64,7 @@ for n, maze in enumerate(MAZES):
 
 # %%
 f, axes = plt.subplots(figsize=(16, 8), ncols=2)
-X =  np.linspace(0, .75, len(DISCOUNT_VALUES.values()))
+X =  np.linspace(0, .75, len(N_episodes.values()))
 xticks = []
 for n, (model, pRs) in enumerate(p_right.items()):
     x = n + X
@@ -86,14 +80,14 @@ for n, (model, pRs) in enumerate(p_right.items()):
         continue
 
     # ax.bar(x, successess, width=.1, color="k", alpha=.5)
-    axes[0].bar(x, successess, yerr=succ_err, width=.04, alpha=1, label=model)
+    axes[0].bar(x, successess, yerr=succ_err, width=.06, alpha=1, label=model)
 
-    axes[1].bar(x, prights, yerr=prights_err, width=.04, alpha=1)
+    axes[1].bar(x, prights, yerr=prights_err, width=.06, alpha=1)
 
 axes[0].legend()
 axes[1].axhline(.5)
 
-_ = axes[1].set(xticks=xticks, xticklabels=[], ylabel="p(R)", title="p(R)|discount", xlabel=f'discounts: {DISCOUNT_VALUES}')
+_ = axes[1].set(xticks=xticks, xticklabels=[], ylabel="p(R)", title="p(R)|discount", xlabel=f'discounts: {N_episodes}')
 _ = axes[0].set(xticks=xticks, xticklabels=[], ylabel="p(success)", title="success|discount",)
 
 # %%
