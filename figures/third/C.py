@@ -1,5 +1,9 @@
 # %%
 import sys
+from pathlib import Path
+import os
+module_path = Path(os.path.abspath(os.path.join("."))).parent.parent
+sys.path.append(str(module_path))
 sys.path.append('./')
 import matplotlib.pyplot as plt
 from loguru import logger
@@ -62,7 +66,7 @@ for n, (_maze, fname) in enumerate(zip((PsychometricM6, PsychometricM1), ('M6', 
 
 clean_axes(f)
 plt.show()
-f.savefig(fig_3_path / 'panel_C_guided_exploration_n_state_transitions_histograms.eps', format='eps', dpi=dpi)
+f.savefig('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Revision/Plots/panel_C_guided_exploration_n_state_transitions_histograms.eps', format='eps', dpi=dpi)
 
 
 

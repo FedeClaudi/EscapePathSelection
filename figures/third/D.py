@@ -32,7 +32,7 @@ print(data)
 
 
 # %%
-f, axes = plt.subplots(figsize=(12, 8), nrows=3)
+f, axes = plt.subplots(figsize=(12, 16), nrows=3)
 
 for ax, maze in zip(axes, MAZES):
     for mn, (model, color) in enumerate(zip(data.model.unique(), MODELS_COLORS)):
@@ -49,7 +49,7 @@ for ax, maze in zip(axes, MAZES):
 
     ax.set(yticks=[0.025, .525], yticklabels=['fail', 'success'], xlabel='session #')
 clean_axes(f)
-f.savefig(fig_3_path / 'panel_D_guided_expl_successes.eps', format='eps', dpi=dpi)
+f.savefig('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Revision/Plots/panel_D_guided_expl_successes.eps', format='eps', dpi=dpi)
 # %%
 '''
     Get p(R)
@@ -63,6 +63,7 @@ for maze in MAZES:
         mn = np.nanmean(arms)
         sm = sem(arms, nan_policy='omit')
         print(f'model: {row.model} p(R): {mn:.2f} +- {sm:2f}')
+
 
 # %%
 '''
@@ -92,12 +93,13 @@ for n, maze in enumerate(MAZES):
         pR = np.nanmean(arms)
         sm = sem(arms, nan_policy='omit')
         axes[n, 1].bar(mn, pR, color=color)
+        axes[n, 0].set(ylabel=maze)
 
-axes[0, 0].set(xticks=[], ylabel=r'% succesfull sessions', ylim=[0, 1],xlim=[-1, 3])
-axes[1, 0].set(xticks=[], ylabel=r'% succesfull sessions', ylim=[0, 1],xlim=[-1, 3])
-axes[2, 0].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylabel=r'% succesfull sessions', ylim=[0, 1], xlim=[-1, 3])
+axes[0, 0].set(xticks=[], ylim=[0, 1],xlim=[-1, 3], title="% succesful")
+axes[1, 0].set(xticks=[], ylim=[0, 1],xlim=[-1, 3])
+axes[2, 0].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylim=[0, 1], xlim=[-1, 3])
 
-_ = axes[0, 1].set(xticks=[], ylabel='p(R)', xlim=[-1, 3], ylim=[0, 1])
-_ = axes[1, 1].set(xticks=[], ylabel='p(R)', xlim=[-1, 3], ylim=[0, 1])
-_ = axes[2, 1].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylabel='p(R)', ylim=[0, 1], xlim=[-1, 3])
-f.savefig(fig_3_path / 'panel_D_guided_expl_successes_v2.eps', format='eps', dpi=dpi)
+_ = axes[0, 1].set(xticks=[], xlim=[-1, 3], ylim=[0, 1], title="pR")
+_ = axes[1, 1].set(xticks=[], xlim=[-1, 3], ylim=[0, 1])
+_ = axes[2, 1].set(xticks=[0, 1, 2], xticklabels=data.model.unique(), ylim=[0, 1], xlim=[-1, 3])
+f.savefig('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Revision/Plots/panel_D_guided_expl_successes_v2.eps', format='eps', dpi=dpi)

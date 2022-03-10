@@ -92,14 +92,16 @@ for n, maze in enumerate(MAZES):
 
 
 axes[0, 0].set(title='M1', ylabel='accuracy', ylim=[0, 1])
-axes[2, 0].set(ylim=[-0.1, 1.1], ylabel='p(R)', xticks=[])
-axes[1, 0].set(xlabel='Model', ylabel=r'steps to 80% accuracy', xticks=[0, 1, 2], xticklabels=MODELS, yticks=[0, 100000])
-axes[3, 0].set(xlabel='episodes', ylabel='p(R)*accuracy')
 axes[0, 1].set(title='M2', ylim=[0, 1])
 axes[0, 2].set(title='M3', ylim=[0, 1])
+for i in range(0, 3):
+    axes[2, i].set(ylim=[-0.1, 1.1], ylabel='p(R)', xticks=[])
+    axes[1, i].set(xlabel='Model', ylabel=r'steps to 80% accuracy', xticks=[0, 1, 2], xticklabels=MODELS,)
+    axes[3, i].set(xlabel='episodes', ylabel='p(R)*accuracy')
+
 
 clean_axes(f)
-f.savefig(fig_3_path / 'panel_B_learning_curves.eps', format='eps', dpi=dpi)
+f.savefig('/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Revision/Plots/panel_B_learning_curves.eps', format='eps', dpi=dpi)
 plt.show()
 
 
