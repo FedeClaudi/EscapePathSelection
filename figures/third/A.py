@@ -15,7 +15,7 @@ import numpy as np
 
 from fcutils.plot.figure import clean_axes
 
-from figures.third import PsychometricM1, PsychometricM2, PsychometricM6, QTableTracking, fig_3_path
+from figures.third import PsychometricM1, PsychometricM2, PsychometricM3, PsychometricM6, QTableTracking, fig_3_path
 from figures.third.settings import TRAINING_SETTINGS, RANDOM_INIT_POS, REWARDS
 from figures.settings import dpi
 
@@ -30,11 +30,23 @@ logger.add(sys.stdout, level='INFO')
 
 sessions = (1, 4)
 # f, ax = plt.subplots(figsize=(7, 7))
-plt.figure(figsize=(9, 9))
 
-maze = PsychometricM2(REWARDS)
+for name, mazeclass in zip(("M1", "M2", "M3"), (PsychometricM1, PsychometricM2, PsychometricM3)):
+    plt.figure(figsize=(20, 20))
 
-plt.imshow(maze.maze)
+    maze = mazeclass(REWARDS)
+
+    # plt.imshow(maze.maze)
+    # f.savefig(fig_3_path / 'paenl_A_quantized_mazes.svg', format='svg', dpi=dpi)
+    x, y = np.where(maze.maze == 0)[::-1]
+    x = x.astype(np.int64)
+    y = y.astype(np.int64)
+    plt.scatter(x, y, marker='s', s=10, lw=2, edgecolors='k')
+    plt.axis('equal')
+    plt.axis('off')
+    plt.ylim(50, 0)
+    plt.savefig(f'/Users/federicoclaudi/Dropbox (UCL)/Rotation_vte/Writings/BehavPaper/Revision/Plots/rlmaze_{name}.eps', format='eps', dpi=dpi)
+
 
 # model = QTableTracking(
 #         PsychometricM1, 
